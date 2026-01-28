@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="DiskBench.Core\DiskBench.Core.csproj" />
+  <Project Path="DiskBench.Metrics\DiskBench.Metrics.csproj" />
+  <Project Path="DiskBench.Win32\DiskBench.Win32.csproj" />
+  <Project Path="DiskBench.Cli\DiskBench.Cli.csproj" />
+  <Project Path="DiskBench.Wpf\DiskBench.Wpf.csproj" />
+  <Project Path="DiskBench.Tests\DiskBench.Tests.csproj" />
+</Solution>

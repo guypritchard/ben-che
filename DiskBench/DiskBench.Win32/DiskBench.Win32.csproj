@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Description>Windows-specific IO engine using Win32 overlapped I/O and IOCP</Description>
+    <!-- Suppress P/Invoke security warnings for kernel32 as it's trusted system library -->
+    <NoWarn>CA5392;CA5394;SYSLIB1051</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DiskBench.Core\DiskBench.Core.csproj" />
+    <ProjectReference Include="..\DiskBench.Metrics\DiskBench.Metrics.csproj" />
+  </ItemGroup>
+
+</Project>
