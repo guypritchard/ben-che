@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  build-cpp:
+    image: mcr.microsoft.com/windows/servercore:ltsc2022-with-buildtools-2022
+    volumes:
+      - type: bind
+        source: .
+        target: C:\src
+    working_dir: C:\src\DiskBench.ShellExtension.Cpp
+    command: |
+      powershell -Command "
+      Write-Host 'Building DiskBench C++ Shell Extension...' -ForegroundColor Cyan;
+      & 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe' `
+        DiskBench.ShellExtension.Cpp.vcxproj `
+        /p:Configuration=Release `
+        /p:Platform=x64 `
+        /p:OutDir=bin\Release\;
+      if ($LASTEXITCODE -eq 0) {
+        Write-Host 'Build succeeded!' -ForegroundColor Green;
+        Write-Host 'DLL: bin\Release\DiskBench.ShellExtension.Cpp.dll' -ForegroundColor Green;
+      } else {
+        Write-Host 'Build failed!' -ForegroundColor Red;
+        exit 1;
+      }
+      "

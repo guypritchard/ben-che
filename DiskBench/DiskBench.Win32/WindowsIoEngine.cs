@@ -424,6 +424,22 @@ public sealed class WindowsIoEngine : IBenchmarkEngine
             }
         }
 
+        if (progress != null)
+        {
+            var finalizeSeconds = spec.MeasuredDuration.TotalSeconds;
+            progress.Report(new TrialProgress
+            {
+                IsWarmup = false,
+                IsFinalizing = true,
+                Elapsed = spec.MeasuredDuration,
+                Duration = spec.MeasuredDuration,
+                CurrentBytesPerSecond = finalizeSeconds > 0 ? metrics.TotalBytes / finalizeSeconds : 0,
+                CurrentIops = finalizeSeconds > 0 ? metrics.TotalOperations / finalizeSeconds : 0,
+                TotalBytes = metrics.TotalBytes,
+                TotalOperations = metrics.TotalOperations
+            });
+        }
+
         // Drain pending IOs
         DrainPendingIos(fileHandle, iocpHandle, slotPool, completionEntries, cancellationToken);
 

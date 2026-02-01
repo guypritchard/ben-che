@@ -10,6 +10,7 @@
         Height="900" Width="1400"
         MinHeight="700" MinWidth="1000"
         Background="Transparent"
+        FontFamily="Segoe UI"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True">
@@ -19,6 +20,7 @@
         <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
         <local:PercentToWidthConverter x:Key="PercentToWidth"/>
         <local:PercentToScaleConverter x:Key="PercentToScale"/>
+        <local:PercentToDashArrayConverter x:Key="PercentToDashArray"/>
     </Window.Resources>
     
     <Border Background="{StaticResource BackgroundDarkBrush}" 
@@ -120,7 +122,19 @@
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
                                         
-
+                                        <StackPanel Grid.Column="0" Grid.Row="0">
+                                            <TextBlock Text="DRIVE" FontSize="10" 
+                                                       Foreground="{StaticResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding DriveInfo.DriveName}" FontSize="14" 
+                                                       Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                        
+                                        <StackPanel Grid.Column="1" Grid.Row="0">
+                                            <TextBlock Text="CONNECTION" FontSize="10" 
+                                                       Foreground="{StaticResource TextMutedBrush}"/>
+                                            <TextBlock Text="{Binding DriveInfo.BusType}" FontSize="14" 
+                                                       Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"/>
+                                        </StackPanel>
 
                                         <StackPanel Grid.Column="0" Grid.Row="1">
                                             <TextBlock Text="FILE SYSTEM" FontSize="10" 
@@ -283,7 +297,6 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             
                             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
@@ -293,47 +306,347 @@
                                            Margin="12,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                             
-                            <Grid Grid.Row="1" Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="CURRENT SPEED" FontSize="10" 
-                                               Foreground="{StaticResource TextMutedBrush}"/>
-                                    <TextBlock Text="{Binding CurrentSpeed}" FontSize="24" 
-                                               FontWeight="Bold" Foreground="{StaticResource AccentBlueBrush}"/>
+                            <StackPanel Grid.Row="1" HorizontalAlignment="Center"
+                                        Visibility="{Binding IsQuickMode, Converter={StaticResource BoolToVis}}">
+                                <Grid Width="180" Height="180">
+                                    <Ellipse Width="140" Height="140" StrokeThickness="10"
+                                             Stroke="{StaticResource BackgroundLightBrush}"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Ellipse Width="140" Height="140" StrokeThickness="10"
+                                             Stroke="{StaticResource ProgressGradient}"
+                                             StrokeDashArray="{Binding Progress, Converter={StaticResource PercentToDashArray}, ConverterParameter=439.8}"
+                                             StrokeStartLineCap="Round"
+                                             StrokeEndLineCap="Round"
+                                             Visibility="{Binding ShowLiveValues, Converter={StaticResource BoolToVis}}"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                                             RenderTransformOrigin="0.5,0.5">
+                                        <Ellipse.RenderTransform>
+                                            <RotateTransform Angle="-90"/>
+                                        </Ellipse.RenderTransform>
+                                    </Ellipse>
+                                    <Ellipse Width="140" Height="140" StrokeThickness="10"
+                                             Stroke="{StaticResource ProgressGradient}"
+                                             StrokeDashArray="110,329.8"
+                                             StrokeStartLineCap="Round"
+                                             StrokeEndLineCap="Round"
+                                             Visibility="{Binding ShowPendingValues, Converter={StaticResource BoolToVis}}"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                                             RenderTransformOrigin="0.5,0.5">
+                                        <Ellipse.RenderTransform>
+                                            <RotateTransform Angle="-90"/>
+                                        </Ellipse.RenderTransform>
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ShowPendingValues}" Value="True">
+                                                        <DataTrigger.EnterActions>
+                                                            <BeginStoryboard x:Name="WarmupRingSpin">
+                                                                <Storyboard RepeatBehavior="Forever">
+                                                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                                                     From="-90" To="270" Duration="0:0:1.2"/>
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </DataTrigger.EnterActions>
+                                                        <DataTrigger.ExitActions>
+                                                            <StopStoryboard BeginStoryboardName="WarmupRingSpin"/>
+                                                        </DataTrigger.ExitActions>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <StackPanel Visibility="{Binding ShowLiveValues, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="{Binding CurrentSpeed}" FontSize="16"
+                                                       FontWeight="Bold" Foreground="{StaticResource AccentBlueBrush}"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Text="SPEED" FontSize="9"
+                                                       Foreground="{StaticResource TextMutedBrush}"
+                                                       HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                            <TextBlock Text="{Binding CurrentIops}" FontSize="16"
+                                                       FontWeight="Bold" Foreground="{StaticResource AccentGreenBrush}"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Text="IOPS" FontSize="9"
+                                                       Foreground="{StaticResource TextMutedBrush}"
+                                                       HorizontalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Visibility="{Binding ShowWarmup, Converter={StaticResource BoolToVis}}"
+                                                    HorizontalAlignment="Center">
+                                            <TextBlock Text="WARMING UP" FontSize="14"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Collecting samples" FontSize="10"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       HorizontalAlignment="Center" Margin="0,4,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsWarmup}" Value="True">
+                                                                <DataTrigger.EnterActions>
+                                                                    <BeginStoryboard x:Name="WarmupPulse">
+                                                                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                             From="0.4" To="1.0" Duration="0:0:0.8"/>
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </DataTrigger.EnterActions>
+                                                                <DataTrigger.ExitActions>
+                                                                    <StopStoryboard BeginStoryboardName="WarmupPulse"/>
+                                                                </DataTrigger.ExitActions>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <StackPanel Visibility="{Binding ShowFinalizing, Converter={StaticResource BoolToVis}}"
+                                                    HorizontalAlignment="Center">
+                                            <TextBlock Text="FINALIZING" FontSize="14"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Draining IO" FontSize="10"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       HorizontalAlignment="Center" Margin="0,4,0,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ShowFinalizing}" Value="True">
+                                                                <DataTrigger.EnterActions>
+                                                                    <BeginStoryboard x:Name="FinalizingPulse">
+                                                                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                             From="0.4" To="1.0" Duration="0:0:0.8"/>
+                                                                        </Storyboard>
+                                                                    </BeginStoryboard>
+                                                                </DataTrigger.EnterActions>
+                                                                <DataTrigger.ExitActions>
+                                                                    <StopStoryboard BeginStoryboardName="FinalizingPulse"/>
+                                                                </DataTrigger.ExitActions>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <StackPanel Visibility="{Binding ShowIdle, Converter={StaticResource BoolToVis}}"
+                                                    HorizontalAlignment="Center">
+                                            <TextBlock Text="READY" FontSize="14"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
+                                                       HorizontalAlignment="Center"/>
+                                            <TextBlock Text="Waiting for next trial" FontSize="10"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                       HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="PROGRESS" FontSize="10"
+                                           Foreground="{StaticResource TextMutedBrush}"
+                                           HorizontalAlignment="Center" Margin="0,8,0,0"
+                                           Visibility="{Binding ShowLiveValues, Converter={StaticResource BoolToVis}}"/>
+                                <TextBlock Text="{Binding ProgressText}" FontSize="20"
+                                           FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           Visibility="{Binding ShowLiveValues, Converter={StaticResource BoolToVis}}"/>
+                                <StackPanel HorizontalAlignment="Center" Margin="0,8,0,0"
+                                            Visibility="{Binding ShowWarmup, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="WARMUP" FontSize="10"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="No values yet" FontSize="14"
+                                               FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
+                                               HorizontalAlignment="Center"/>
                                 </StackPanel>
-                                
-                                <StackPanel Grid.Column="1">
-                                    <TextBlock Text="IOPS" FontSize="10" 
-                                               Foreground="{StaticResource TextMutedBrush}"/>
-                                    <TextBlock Text="{Binding CurrentIops}" FontSize="24" 
-                                               FontWeight="Bold" Foreground="{StaticResource AccentGreenBrush}"/>
+                                <StackPanel HorizontalAlignment="Center" Margin="0,8,0,0"
+                                            Visibility="{Binding ShowFinalizing, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="FINALIZING" FontSize="10"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Draining IO" FontSize="14"
+                                               FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
+                                               HorizontalAlignment="Center"/>
                                 </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1"
+                                        Visibility="{Binding IsQuickMode, Converter={StaticResource InverseBoolToVis}}">
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="CURRENT SPEED" FontSize="10" 
+                                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                        <TextBlock Text="{Binding CurrentSpeed}" FontSize="24" 
+                                                   FontWeight="Bold" Foreground="{StaticResource AccentBlueBrush}"
+                                                   Visibility="{Binding ShowLiveValues, Converter={StaticResource BoolToVis}}"/>
+                                        <TextBlock Text="..." FontSize="20"
+                                                   FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Visibility="{Binding ShowPendingValues, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShowPendingValues}" Value="True">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard x:Name="WarmupSpeedPulse">
+                                                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                         From="0.4" To="1.0" Duration="0:0:0.8"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions>
+                                                                <StopStoryboard BeginStoryboardName="WarmupSpeedPulse"/>
+                                                            </DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Text="--" FontSize="20"
+                                                   FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Visibility="{Binding ShowIdle, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                    
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="IOPS" FontSize="10" 
+                                                   Foreground="{StaticResource TextMutedBrush}"/>
+                                        <TextBlock Text="{Binding CurrentIops}" FontSize="24" 
+                                                   FontWeight="Bold" Foreground="{StaticResource AccentGreenBrush}"
+                                                   Visibility="{Binding ShowLiveValues, Converter={StaticResource BoolToVis}}"/>
+                                        <TextBlock Text="..." FontSize="20"
+                                                   FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Visibility="{Binding ShowPendingValues, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShowPendingValues}" Value="True">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard x:Name="WarmupIopsPulse">
+                                                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                         From="0.4" To="1.0" Duration="0:0:0.8"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions>
+                                                                <StopStoryboard BeginStoryboardName="WarmupIopsPulse"/>
+                                                            </DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Text="--" FontSize="20"
+                                                   FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"
+                                                   Visibility="{Binding ShowIdle, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                    
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="PROGRESS" FontSize="10" 
+                                                   Foreground="{StaticResource TextMutedBrush}"
+                                                   Visibility="{Binding ShowLiveValues, Converter={StaticResource BoolToVis}}"/>
+                                        <TextBlock Text="{Binding ProgressText}" FontSize="24" 
+                                                   FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Visibility="{Binding ShowLiveValues, Converter={StaticResource BoolToVis}}"/>
+                                        <TextBlock Text="WARMUP" FontSize="14"
+                                                   FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Visibility="{Binding ShowWarmup, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShowWarmup}" Value="True">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard x:Name="WarmupStatusPulse">
+                                                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                         From="0.5" To="1.0" Duration="0:0:0.9"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions>
+                                                                <StopStoryboard BeginStoryboardName="WarmupStatusPulse"/>
+                                                            </DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Text="FINALIZING" FontSize="14"
+                                                   FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Visibility="{Binding ShowFinalizing, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ShowFinalizing}" Value="True">
+                                                            <DataTrigger.EnterActions>
+                                                                <BeginStoryboard x:Name="FinalizingStatusPulse">
+                                                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                         From="0.5" To="1.0" Duration="0:0:0.9"/>
+                                                                    </Storyboard>
+                                                                </BeginStoryboard>
+                                                            </DataTrigger.EnterActions>
+                                                            <DataTrigger.ExitActions>
+                                                                <StopStoryboard BeginStoryboardName="FinalizingStatusPulse"/>
+                                                            </DataTrigger.ExitActions>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Text="READY" FontSize="14"
+                                                   FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   Visibility="{Binding ShowIdle, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                </Grid>
                                 
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="PROGRESS" FontSize="10" 
-                                               Foreground="{StaticResource TextMutedBrush}"/>
-                                    <TextBlock Text="{Binding ProgressText}" FontSize="24" 
-                                               FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                </StackPanel>
-                            </Grid>
-                            
-                            <Grid Grid.Row="2" Height="8">
-                                <Border Background="{StaticResource BackgroundLightBrush}" CornerRadius="4"/>
-                                <Border Background="{StaticResource ProgressGradient}" CornerRadius="4"
-                                        HorizontalAlignment="Stretch">
-                                    <Border.RenderTransform>
-                                        <ScaleTransform ScaleX="{Binding Progress, Converter={StaticResource PercentToScale}}" ScaleY="1"/>
-                                    </Border.RenderTransform>
-                                    <Border.RenderTransformOrigin>
-                                        <Point X="0" Y="0.5"/>
-                                    </Border.RenderTransformOrigin>
-                                </Border>
-                            </Grid>
+                                <Grid Height="8" x:Name="ProgressTrack" ClipToBounds="True"
+                                      Visibility="{Binding IsPhaseActive, Converter={StaticResource BoolToVis}}">
+                                    <Border Background="{StaticResource BackgroundLightBrush}" CornerRadius="4"/>
+                                    <Border x:Name="WarmupIndicator" Height="8" Width="60"
+                                            Background="{StaticResource ProgressGradient}"
+                                            CornerRadius="4" HorizontalAlignment="Left"
+                                            Visibility="{Binding ShowPendingValues, Converter={StaticResource BoolToVis}}">
+                                        <Border.RenderTransform>
+                                            <TranslateTransform X="-60"/>
+                                        </Border.RenderTransform>
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ShowPendingValues}" Value="True">
+                                                        <DataTrigger.EnterActions>
+                                                            <BeginStoryboard x:Name="WarmupSlide">
+                                                                <Storyboard RepeatBehavior="Forever">
+                                                                    <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                                                     From="-60"
+                                                                                     To="800"
+                                                                                     Duration="0:0:1.2"/>
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </DataTrigger.EnterActions>
+                                                        <DataTrigger.ExitActions>
+                                                            <StopStoryboard BeginStoryboardName="WarmupSlide"/>
+                                                        </DataTrigger.ExitActions>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                    <Border Background="{StaticResource ProgressGradient}" CornerRadius="4"
+                                            HorizontalAlignment="Stretch"
+                                            Visibility="{Binding ShowLiveValues, Converter={StaticResource BoolToVis}}">
+                                        <Border.RenderTransform>
+                                            <ScaleTransform ScaleX="{Binding Progress, Converter={StaticResource PercentToScale}}" ScaleY="1"/>
+                                        </Border.RenderTransform>
+                                        <Border.RenderTransformOrigin>
+                                            <Point X="0" Y="0.5"/>
+                                        </Border.RenderTransformOrigin>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
                         </Grid>
                     </Border>
                     

@@ -11,6 +11,11 @@ public sealed class TrialProgress
     public required bool IsWarmup { get; init; }
 
     /// <summary>
+    /// Whether the trial is finalizing (draining IO) after measured phase.
+    /// </summary>
+    public bool IsFinalizing { get; init; }
+
+    /// <summary>
     /// Current phase elapsed time.
     /// </summary>
     public required TimeSpan Elapsed { get; init; }

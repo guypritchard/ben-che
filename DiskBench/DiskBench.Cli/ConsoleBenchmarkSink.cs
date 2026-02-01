@@ -42,14 +42,20 @@ internal sealed class ConsoleBenchmarkSink : IBenchmarkSink
     {
         if (_lastProgressLine >= 0 && Console.CursorTop == _lastProgressLine)
         {
+            if (progress.IsFinalizing)
+            {
+                Console.Write($"\r???  Trial {trialNumber}: [Finalizing] Draining IO...                ");
+                return;
+            }
+
             var phase = progress.IsWarmup ? "Warmup" : "Running";
             var throughput = FormatThroughput(progress.CurrentBytesPerSecond);
             var iops = FormatIops(progress.CurrentIops);
-            Console.Write($"\r│  Trial {trialNumber}: [{phase}] {progress.PercentComplete:F0}% - {throughput} ({iops})    ");
+            Console.Write($"\r???  Trial {trialNumber}: [{phase}] {progress.PercentComplete:F0}% - {throughput} ({iops})    ");
         }
     }
 
-    public void OnTrialComplete(WorkloadSpec workload, int trialNumber, TrialResult result)
+public void OnTrialComplete(WorkloadSpec workload, int trialNumber, TrialResult result)
     {
         Console.WriteLine($"\r│  Trial {trialNumber}: {FormatThroughput(result.BytesPerSecond)} " +
                          $"({FormatIops(result.Iops)}) - Lat: p50={result.Latency.P50Us:F1}µs, " +

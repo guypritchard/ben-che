@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Media;
 
 namespace DiskBench.Wpf;
 
@@ -55,6 +56,38 @@ public class PercentToScaleConverter : IValueConverter
         
         // Clamp between 0 and 100, then convert to 0.0-1.0 scale
         return Math.Max(0, Math.Min(percent / 100.0, 1.0));
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class PercentToDashArrayConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        double percent = 0;
+        if (value is double d)
+            percent = d;
+        else if (value is int i)
+            percent = i;
+        else if (value is float f)
+            percent = f;
+
+        var circumference = 0.0;
+        if (parameter != null)
+            double.TryParse(parameter.ToString(), out circumference);
+
+        if (circumference <= 0)
+            return new DoubleCollection { 0, 1 };
+
+        var clamped = Math.Max(0, Math.Min(percent, 100));
+        var progress = circumference * (clamped / 100.0);
+        var remainder = Math.Max(0.0, circumference - progress);
+
+        return new DoubleCollection { progress, remainder };
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

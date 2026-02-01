@@ -1,0 +1,253 @@
+====================================================================
+BUILD OPTIONS - CHOOSE YOUR PATH
+====================================================================
+
+You have 3 ways to build DiskBench C++ Shell Extension.
+Pick the one that works best for you.
+
+====================================================================
+OPTION 1: VISUAL STUDIO 2022 COMMUNITY (EASIEST IF YOU LIKE IDEs)
+====================================================================
+
+What: GUI IDE with compiler, debugger, editor all in one
+Cost: FREE
+Download: https://visualstudio.microsoft.com/vs/
+Size: 10 GB
+Setup Time: 30 mins - 1 hour
+
+Steps:
+  1. Download VS 2022 Community
+  2. Run installer
+  3. Select "Desktop development with C++"
+  4. Install
+  5. Open DiskBench.ShellExtension.Cpp.vcxproj in VS
+  6. Click Build → Build Solution
+  7. DLL ready at: bin\Debug\DiskBench.ShellExtension.Cpp.dll
+
+Best For:
+  ✓ First-time builders
+  ✓ Want IDE for editing
+  ✓ Want debugger
+  ✓ Learning C++
+  ✓ Don't mind 10 GB install
+
+====================================================================
+OPTION 2: VISUAL STUDIO BUILD TOOLS 2022 (MINIMAL CLI)
+====================================================================
+
+What: Just the compiler & tools (no IDE, command-line only)
+Cost: FREE
+Download: https://visualstudio.microsoft.com/downloads/
+         (scroll down to "Build Tools")
+Size: 3 GB
+Setup Time: 15-30 minutes
+
+Steps:
+  1. Download Build Tools 2022
+  2. Run installer
+  3. Select "C++ build tools"
+  4. Install
+  5. Open PowerShell in project directory
+  6. Run:
+     msbuild DiskBench.ShellExtension.Cpp.vcxproj /p:Platform=x64
+  7. DLL ready at: bin\Release\DiskBench.ShellExtension.Cpp.dll
+
+Best For:
+  ✓ CI/CD pipelines
+  ✓ Headless builds
+  ✓ Want minimal footprint
+  ✓ Experienced developers
+  ✓ Space constrained
+
+====================================================================
+OPTION 3: DOCKER CONTAINER (CLEANEST, FASTEST SETUP)
+====================================================================
+
+What: Pre-built container with compiler already installed
+Cost: FREE
+Download: Docker Desktop https://www.docker.com/products/docker-desktop
+Size: 5 GB (container image only)
+Setup Time: 10 minutes
+
+Steps:
+  1. Download Docker Desktop
+  2. Install & restart
+  3. Run: build-with-docker.bat
+  4. DLL ready at: bin\Release\DiskBench.ShellExtension.Cpp.dll
+
+Best For:
+  ✓ Quick setup
+  ✓ Don't want tools on system
+  ✓ Clean environment
+  ✓ Reproducible builds
+  ✓ Future CI/CD pipelines
+
+====================================================================
+COMPARISON TABLE
+====================================================================
+
+                  VS 2022      Build Tools    DOCKER
+                  
+Initial Setup     1 hour       30 min         10 min
+First Build       2 min        2 min          5 min*
+Re-builds         2 min        2 min          2 min*
+Total Disk Use    10+ GB       3 GB           5 GB
+System Impact     High         Medium         None
+IDE Included      YES          NO             NO
+Debugger          YES          NO             NO
+Learning Curve    Easy         Medium         Medium
+Docker Needed     NO           NO             YES
+
+*First time includes ~5 min container image download
+
+====================================================================
+SIDE-BY-SIDE COMPARISON
+====================================================================
+
+SCENARIO 1: I want a full IDE
+→ Use VS 2022 Community
+
+SCENARIO 2: I just want to build once
+→ Use Docker (fastest overall)
+
+SCENARIO 3: I plan to edit code a lot
+→ Use VS 2022 Community (IDE helps)
+
+SCENARIO 4: I have CI/CD pipelines
+→ Use Docker (or Build Tools)
+
+SCENARIO 5: I have limited disk space
+→ Use Build Tools (3 GB) or Docker (5 GB)
+
+SCENARIO 6: I'm new to programming
+→ Use VS 2022 Community (easiest)
+
+SCENARIO 7: I want no bloat on my system
+→ Use Docker (nothing left after build)
+
+SCENARIO 8: I just want it done fastest
+→ Use Docker (10 min setup vs 1 hour)
+
+====================================================================
+DETAILED COMPARISON
+====================================================================
+
+VISUAL STUDIO 2022 COMMUNITY:
+  Pros:
+    ✓ Full IDE (edit code, debug, etc.)
+    ✓ IntelliSense (code completion)
+    ✓ Visual debugger
+    ✓ Integrated build
+    ✓ Official Microsoft product
+    ✓ Easy for beginners
+  
+  Cons:
+    ✗ 10+ GB install
+    ✗ Takes 30 mins - 1 hour to install
+    ✗ Uses lots of disk space
+    ✗ Clutters your system
+
+BUILD TOOLS 2022:
+  Pros:
+    ✓ Just the essentials (3 GB)
+    ✓ Faster install (15-30 min)
+    ✓ Less disk space
+    ✓ Good for CI/CD
+  
+  Cons:
+    ✗ No IDE
+    ✗ Command-line only
+    ✗ No debugger
+    ✗ Steeper learning curve
+
+DOCKER CONTAINER:
+  Pros:
+    ✓ Fastest setup (10 min)
+    ✓ Cleanest (no system pollution)
+    ✓ Reproducible (same every time)
+    ✓ 5 GB image size
+    ✓ No installation needed after Docker
+    ✓ Perfect for CI/CD
+  
+  Cons:
+    ✗ Requires Docker Desktop
+    ✗ Need basic Docker knowledge
+    ✗ First pull takes 5-10 min
+    ✗ No IDE (need separate editor)
+
+====================================================================
+QUICK DECISION TREE
+====================================================================
+
+Question: Do you want an IDE?
+  YES  → VS 2022 Community Edition
+  NO   → Continue below
+
+Question: Do you have Docker Desktop?
+  YES  → Use Docker Container
+  NO   → Continue below
+
+Question: Do you want minimal install?
+  YES  → Build Tools 2022
+  NO   → Build Tools 2022 (only option left)
+
+====================================================================
+MY RECOMMENDATION
+====================================================================
+
+For Most Users:
+  → VISUAL STUDIO 2022 COMMUNITY
+  → Easiest to use
+  → Includes everything
+  → Good for learning
+
+For Experienced Developers:
+  → DOCKER CONTAINER
+  → Fastest setup
+  → Cleanest system
+  → Great for pipelines
+
+For Space-Constrained Systems:
+  → BUILD TOOLS 2022
+  → Minimal footprint
+  → Still complete
+
+====================================================================
+NEXT STEPS
+====================================================================
+
+1. Pick your option above
+
+2. If VS 2022:
+   - Download from: https://visualstudio.microsoft.com/vs/
+   - Run installer
+   - Select "Desktop development with C++"
+   - Come back when done
+
+3. If Build Tools:
+   - Download from: https://visualstudio.microsoft.com/downloads/
+   - Run installer  
+   - Select "C++ build tools"
+   - Come back when done
+
+4. If Docker:
+   - Download from: https://www.docker.com/products/docker-desktop
+   - Run installer
+   - Run: build-with-docker.bat
+   - Come back when done
+
+5. After building:
+   - Run: Install-ExplorerCommand-Cpp.ps1 (as Administrator)
+   - Test: Right-click a drive in File Explorer
+   - Look for: "Benchmark Drive Performance"
+
+====================================================================
+QUESTIONS?
+====================================================================
+
+See detailed docs:
+  - README_BUILD.md      (VS 2022 details)
+  - DOCKER_BUILD.md      (Docker details)
+  - DOCKER_QUICK_START.txt (Docker quick ref)
+
+====================================================================

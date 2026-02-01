@@ -60,7 +60,7 @@
                 
                 <!-- Throughput -->
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="THROUGHPUT" FontSize="10" 
+                    <TextBlock Text="THROUGHPUT (RELATIVE)" FontSize="10" 
                                Foreground="{StaticResource TextMutedBrush}" Margin="0,0,0,4"/>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="{Binding ThroughputValue}" Style="{StaticResource BigValue}"
@@ -101,8 +101,13 @@
             <Grid Grid.Row="2" Margin="0,0,0,12">
                 <Border Background="{StaticResource BackgroundLightBrush}" 
                         CornerRadius="6" Height="24"/>
-                <Border CornerRadius="6" Height="24" HorizontalAlignment="Left"
-                        Width="{Binding BarWidth}">
+                <Border CornerRadius="6" Height="24" HorizontalAlignment="Stretch">
+                    <Border.RenderTransform>
+                        <ScaleTransform ScaleX="{Binding BarPercent, Converter={StaticResource PercentToScale}}" ScaleY="1"/>
+                    </Border.RenderTransform>
+                    <Border.RenderTransformOrigin>
+                        <Point X="0" Y="0.5"/>
+                    </Border.RenderTransformOrigin>
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
                             <GradientStop Color="{Binding BarColorStart}" Offset="0"/>

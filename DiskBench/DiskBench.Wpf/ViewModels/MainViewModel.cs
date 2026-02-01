@@ -99,6 +99,15 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
     private string _progressText = "0%";
 
     [ObservableProperty]
+    private bool _isWarmup;
+
+    [ObservableProperty]
+    private bool _isPhaseActive;
+
+    [ObservableProperty]
+    private bool _isFinalizing;
+
+    [ObservableProperty]
     private ObservableCollection<WorkloadResultViewModel> _results;
 
     [ObservableProperty]
@@ -115,6 +124,11 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
     public bool HasResults => Results.Count > 0;
     public bool ShowEmptyState => !IsRunning && Results.Count == 0;
     public bool ShowConfigPanel => !IsQuickMode;
+    public bool ShowLiveValues => IsPhaseActive && !IsWarmup && !IsFinalizing;
+    public bool ShowWarmup => IsPhaseActive && IsWarmup;
+    public bool ShowFinalizing => IsPhaseActive && IsFinalizing;
+    public bool ShowPendingValues => IsPhaseActive && (IsWarmup || IsFinalizing);
+    public bool ShowIdle => !IsPhaseActive;
 
     #endregion
 
@@ -153,12 +167,6 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
             var runner = new BenchmarkRunner(_engine, this);
             var result = await runner.RunAsync(plan, _cts.Token);
 
-            // Populate results
-            foreach (var workloadResult in result.Workloads)
-            {
-                Results.Add(new WorkloadResultViewModel(workloadResult));
-            }
-            
             OnPropertyChanged(nameof(HasResults));
         }
         catch (OperationCanceledException)
@@ -173,6 +181,7 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
         finally
         {
             IsRunning = false;
+            IsWarmup = false;
             OnPropertyChanged(nameof(IsNotRunning));
             OnPropertyChanged(nameof(ShowEmptyState));
             _cts?.Dispose();
@@ -209,6 +218,9 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
             _currentTrialIndex = 0;
             Progress = 0;
             ProgressText = "0%";
+            IsWarmup = false;
+            IsPhaseActive = false;
+            IsFinalizing = false;
         });
     }
 
@@ -229,6 +241,11 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
             _currentTrialIndex = trialNumber - 1; // trialNumber is 1-based
             _totalTrials = totalTrials;
             CurrentPhase = $"Trial {trialNumber}/{totalTrials}";
+            IsWarmup = false;
+            IsFinalizing = false;
+            IsPhaseActive = true;
+            Progress = 0;
+            ProgressText = "0%";
         });
     }
 
@@ -237,25 +254,26 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
         Application.Current.Dispatcher.Invoke(() =>
         {
             var phase = progress.IsWarmup ? "Warmup" : "Measuring";
-            
-            CurrentPhase = $"{phase} - {progress.Elapsed.TotalSeconds:F0}s / {progress.Duration.TotalSeconds:F0}s";
+
+            if (progress.IsFinalizing)
+            {
+                CurrentPhase = "Finalizing...";
+                Progress = 0;
+                ProgressText = "";
+            }
+            else
+            {
+                CurrentPhase = $"{phase} - {progress.Elapsed.TotalSeconds:F0}s / {progress.Duration.TotalSeconds:F0}s";
+                Progress = progress.PercentComplete;
+                ProgressText = $"{Progress:F0}%";
+            }
+
             CurrentSpeed = FormatSpeed(progress.CurrentBytesPerSecond);
             CurrentIops = FormatIops(progress.CurrentIops);
-            
-            // Calculate overall progress across all workloads and trials
-            // Each workload has equal weight, each trial within a workload has equal weight
-            var trialProgress = progress.Elapsed.TotalSeconds / progress.Duration.TotalSeconds;
-            var trialWeight = 1.0 / Math.Max(1, _totalTrials);
-            var workloadWeight = 1.0 / Math.Max(1, _totalWorkloads);
-            
-            var completedWorkloadsProgress = _currentWorkloadIndex * workloadWeight;
-            var completedTrialsProgress = _currentTrialIndex * trialWeight * workloadWeight;
-            var currentTrialProgress = trialProgress * trialWeight * workloadWeight;
-            
-            var overallProgress = (completedWorkloadsProgress + completedTrialsProgress + currentTrialProgress) * 100;
-            
-            Progress = Math.Min(overallProgress, 100);
-            ProgressText = $"{Progress:F0}%";
+            IsWarmup = progress.IsWarmup;
+            IsFinalizing = progress.IsFinalizing;
+            IsPhaseActive = true;
+
         });
     }
 
@@ -264,6 +282,11 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
         Application.Current.Dispatcher.Invoke(() =>
         {
             CurrentPhase = "Trial complete";
+            IsWarmup = false;
+            IsPhaseActive = false;
+            IsFinalizing = false;
+            Progress = 0;
+            ProgressText = "";
         });
     }
 
@@ -281,9 +304,35 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
         Application.Current.Dispatcher.Invoke(() =>
         {
             CurrentPhase = "Complete!";
-            Progress = 100;
-            ProgressText = "100%";
+            IsWarmup = false;
+            IsPhaseActive = false;
+            IsFinalizing = false;
+            Progress = 0;
+            ProgressText = "";
         });
+    }
+
+    partial void OnIsWarmupChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowLiveValues));
+        OnPropertyChanged(nameof(ShowWarmup));
+        OnPropertyChanged(nameof(ShowPendingValues));
+    }
+
+    partial void OnIsPhaseActiveChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowLiveValues));
+        OnPropertyChanged(nameof(ShowWarmup));
+        OnPropertyChanged(nameof(ShowFinalizing));
+        OnPropertyChanged(nameof(ShowPendingValues));
+        OnPropertyChanged(nameof(ShowIdle));
+    }
+
+    partial void OnIsFinalizingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ShowLiveValues));
+        OnPropertyChanged(nameof(ShowFinalizing));
+        OnPropertyChanged(nameof(ShowPendingValues));
     }
 
     public void OnWarning(string message)
@@ -411,7 +460,9 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
         Drives.Clear();
         foreach (var drive in System.IO.DriveInfo.GetDrives())
         {
-            if (drive.IsReady && drive.DriveType == System.IO.DriveType.Fixed)
+            if (drive.IsReady &&
+                (drive.DriveType == System.IO.DriveType.Fixed ||
+                 drive.DriveType == System.IO.DriveType.Removable))
             {
                 Drives.Add($"{drive.Name} ({FormatSize(drive.TotalFreeSpace)} free)");
             }
@@ -572,10 +623,25 @@ public class WorkloadResultViewModel : ObservableObject
             LatencyValue = (p99 / 1000).ToString("F1");
             LatencyUnit = "ms";
         }
-        else
+        else if (p99 >= 100)
         {
             LatencyValue = p99.ToString("F0");
-            LatencyUnit = "µs";
+            LatencyUnit = "\u00B5s";
+        }
+        else if (p99 >= 10)
+        {
+            LatencyValue = p99.ToString("F1");
+            LatencyUnit = "\u00B5s";
+        }
+        else if (p99 >= 1)
+        {
+            LatencyValue = p99.ToString("F2");
+            LatencyUnit = "\u00B5s";
+        }
+        else
+        {
+            LatencyValue = "<1";
+            LatencyUnit = "\u00B5s";
         }
         
         // Latency percentiles
@@ -608,9 +674,9 @@ public class WorkloadResultViewModel : ObservableObject
             ThroughputColor = new SolidColorBrush(Color.FromRgb(88, 166, 255));
         }
         
-        // Bar width (normalized to max ~7000 MB/s for NVMe)
+        // Bar percent (normalized to max ~7000 MB/s for NVMe)
         var maxMbps = 7000.0;
-        BarWidth = Math.Min(mbps / maxMbps * 600, 600);
+        BarPercent = Math.Min(mbps / maxMbps * 100.0, 100.0);
         
         // Score badge
         if (mbps >= 3000)
@@ -677,7 +743,7 @@ public class WorkloadResultViewModel : ObservableObject
     
     public Color BarColorStart { get; }
     public Color BarColorEnd { get; }
-    public double BarWidth { get; }
+    public double BarPercent { get; }
     
     public string ScoreLabel { get; }
     public Brush ScoreBackground { get; }
@@ -698,9 +764,9 @@ public class WorkloadResultViewModel : ObservableObject
         return us switch
         {
             >= 1000 => $"{us / 1000:F1}ms",
-            >= 100 => $"{us:F0}µs",
-            >= 10 => $"{us:F1}µs",
-            _ => $"{us:F2}µs"
+            >= 100 => $"{us:F0}\u00B5s",
+            >= 10 => $"{us:F1}\u00B5s",
+            _ => $"{us:F2}\u00B5s"
         };
     }
 }

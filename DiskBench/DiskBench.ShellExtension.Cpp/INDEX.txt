@@ -1,0 +1,346 @@
+================================================================================
+DISKBENCH C++ SHELL EXTENSION - COMPLETE BUILD GUIDE
+================================================================================
+
+Your project is ready to build!
+Location: C:\Source\ben-che\DiskBench\DiskBench.ShellExtension.Cpp\
+
+================================================================================
+QUICK START (Pick One)
+================================================================================
+
+Option 1 - Visual Studio 2022 IDE:
+  1. Download: https://visualstudio.microsoft.com/vs/
+  2. Install (choose "Desktop development with C++")
+  3. Open: DiskBench.ShellExtension.Cpp.vcxproj in Visual Studio
+  4. Click: Build → Build Solution
+  5. Done!
+
+Option 2 - Docker Container (Pre-built):
+  1. Download: https://www.docker.com/products/docker-desktop
+  2. Install & restart
+  3. Run: build-with-docker.bat
+  4. Done!
+
+Option 3 - Build Tools CLI:
+  1. Download: https://visualstudio.microsoft.com/downloads/ (Build Tools)
+  2. Install (choose "C++ build tools")
+  3. Run: msbuild DiskBench.ShellExtension.Cpp.vcxproj /p:Platform=x64
+  4. Done!
+
+================================================================================
+FILES IN THIS PROJECT
+================================================================================
+
+SOURCE CODE (C++):
+  ✓ ExplorerCommand.h       - Interface definition
+  ✓ ExplorerCommand.cpp     - Main implementation
+  ✓ dllmain.cpp             - DLL entry & class factory
+  ✓ stdafx.h                - Precompiled headers
+  ✓ version.rc              - Version information
+
+BUILD CONFIGURATION:
+  ✓ DiskBench.ShellExtension.Cpp.vcxproj - Visual Studio project
+
+BUILD SCRIPTS:
+  ✓ build-with-docker.bat   - Docker build (Windows batch)
+  ✓ build-with-docker.ps1   - Docker build (PowerShell)
+  ✓ docker-compose.yml      - Docker Compose config
+  ✓ Dockerfile              - Container definition
+
+DOCUMENTATION:
+  ✓ BUILD_OPTIONS.txt       - Which method to use
+  ✓ README_BUILD.md         - Detailed build guide (VS 2022)
+  ✓ DOCKER_BUILD.md         - Detailed guide (Docker)
+  ✓ DOCKER_QUICK_START.txt  - Docker quick reference
+  ✓ THIS FILE               - Index & navigation
+
+OUTPUT LOCATION (after build):
+  → bin/Debug/DiskBench.ShellExtension.Cpp.dll (VS 2022)
+  → bin/Release/DiskBench.ShellExtension.Cpp.dll (Docker/Build Tools)
+
+================================================================================
+WHICH METHOD SHOULD I USE?
+================================================================================
+
+Read: BUILD_OPTIONS.txt (in this folder)
+
+Quick Summary:
+  - New to this? → VS 2022 Community (easiest, most complete)
+  - Want quick setup? → Docker Container (10 min setup)
+  - Minimal install? → Build Tools 2022 (3 GB)
+
+================================================================================
+STEP-BY-STEP FOR EACH METHOD
+================================================================================
+
+METHOD 1: VISUAL STUDIO 2022 COMMUNITY (Recommended)
+────────────────────────────────────────────────────
+Read: README_BUILD.md (in this folder)
+
+Quick Steps:
+  1. Go to: https://visualstudio.microsoft.com/vs/
+  2. Download Visual Studio 2022 Community
+  3. Run the installer
+  4. Check "Desktop development with C++"
+  5. Check "Windows application development"
+  6. Click Install
+  7. Wait 30 mins - 1 hour
+  8. Open VS 2022
+  9. File → Open → Project/Solution
+  10. Select: DiskBench.ShellExtension.Cpp.vcxproj
+  11. Build → Build Solution (or Ctrl+Shift+B)
+  12. Wait for "Build succeeded" message
+  13. DLL is at: bin\Debug\DiskBench.ShellExtension.Cpp.dll
+
+METHOD 2: DOCKER CONTAINER (Fastest Setup)
+────────────────────────────────────────────
+Read: DOCKER_BUILD.md or DOCKER_QUICK_START.txt
+
+Quick Steps:
+  1. Go to: https://www.docker.com/products/docker-desktop
+  2. Download Docker Desktop
+  3. Run installer
+  4. Restart your computer
+  5. Start Docker Desktop
+  6. Open PowerShell or Command Prompt
+  7. Navigate to: C:\Source\ben-che\DiskBench\DiskBench.ShellExtension.Cpp
+  8. Run: build-with-docker.bat (or .\build-with-docker.ps1)
+  9. Wait 5-10 minutes (first time) or 2-5 minutes (subsequent)
+  10. DLL is at: bin\Release\DiskBench.ShellExtension.Cpp.dll
+
+METHOD 3: BUILD TOOLS 2022 (CLI Only)
+──────────────────────────────────────
+Read: README_BUILD.md (search for "Build Tools")
+
+Quick Steps:
+  1. Go to: https://visualstudio.microsoft.com/downloads/
+  2. Scroll down to "Visual Studio Build Tools 2022"
+  3. Download Build Tools 2022
+  4. Run installer
+  5. Check "C++ build tools"
+  6. Click Install
+  7. Wait 15-30 minutes
+  8. Open PowerShell
+  9. Navigate to: C:\Source\ben-che\DiskBench\DiskBench.ShellExtension.Cpp
+  10. Run: msbuild DiskBench.ShellExtension.Cpp.vcxproj /p:Configuration=Release /p:Platform=x64
+  11. DLL is at: bin\Release\DiskBench.ShellExtension.Cpp.dll
+
+================================================================================
+AFTER BUILDING: INSTALLATION
+================================================================================
+
+Once you have the DLL:
+
+1. Open PowerShell as Administrator
+   (Right-click PowerShell → "Run as Administrator")
+
+2. Navigate to: cd C:\Source\ben-che\DiskBench
+
+3. Run: .\Install-ExplorerCommand-Cpp.ps1
+
+4. Wait for completion (you'll see green ✓ checkmarks)
+
+5. Test:
+   - Open File Explorer
+   - Right-click on a drive (C:, D:, etc.)
+   - Look for "Benchmark Drive Performance" in the context menu
+
+If it appears → Success! ✓
+If it doesn't → See TROUBLESHOOTING section below
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+BUILD FAILS: "Project not found"
+  Solution: Make sure path is: C:\Source\ben-che\DiskBench\DiskBench.ShellExtension.Cpp\
+
+BUILD FAILS: "Windows SDK not found"
+  Solution: 
+    - Go to Visual Studio Installer
+    - Click "Modify"
+    - Check Windows 11 SDK version
+    - Click "Modify"
+
+BUILD FAILS: "MSVC compiler not found"
+  Solution:
+    - Go to Visual Studio Installer
+    - Click "Modify"
+    - Check "Desktop development with C++"
+    - Click "Modify"
+
+DOCKER: "Docker is not running"
+  Solution: Start Docker Desktop application
+
+DOCKER: "Could not pull image"
+  Solution:
+    - Check internet connection
+    - Try: docker pull mcr.microsoft.com/windows/servercore:ltsc2022-with-buildtools-2022
+
+INSTALLATION: "Access Denied"
+  Solution: Right-click PowerShell → "Run as Administrator"
+
+CONTEXT MENU: Doesn't appear after install
+  Solution:
+    - Verify DLL exists at: bin\Release\DiskBench.ShellExtension.Cpp.dll
+    - Verify ExePath registry: reg query "HKLM\SOFTWARE\DiskBench\ShellExtension"
+    - Restart Explorer: Stop-Process -Name explorer -Force; Start-Process explorer
+    - Re-run install: .\Install-ExplorerCommand-Cpp.ps1
+
+================================================================================
+UNDERSTANDING THE BUILD PROCESS
+================================================================================
+
+What happens when you build:
+
+1. COMPILE: C++ source code → machine code (.obj files)
+2. LINK: Link .obj files with libraries → .dll file
+3. OUTPUT: DLL placed in bin folder
+
+C++ Source:
+  ├─ ExplorerCommand.cpp
+  ├─ dllmain.cpp
+  └─ stdafx.h
+
+         ↓ [COMPILE with MSVC]
+
+Object Files:
+  ├─ ExplorerCommand.obj
+  └─ dllmain.obj
+
+         ↓ [LINK with Libraries]
+         
+        ↓ Libraries:
+        ├─ windows.h (Windows API)
+        ├─ shell32.lib (Shell interfaces)
+        └─ shlwapi.lib (String functions)
+
+         ↓
+
+OUTPUT:
+  → DiskBench.ShellExtension.Cpp.dll
+
+================================================================================
+DOCUMENTATION ROADMAP
+================================================================================
+
+START HERE:
+  → This file (INDEX)
+
+PICK YOUR METHOD:
+  → BUILD_OPTIONS.txt
+
+FOR VISUAL STUDIO 2022:
+  → README_BUILD.md
+
+FOR DOCKER:
+  → DOCKER_BUILD.md (detailed)
+  → DOCKER_QUICK_START.txt (quick ref)
+
+FOR INSTALLATION:
+  → Follow instructions in "AFTER BUILDING" section above
+
+FOR TROUBLESHOOTING:
+  → See "TROUBLESHOOTING" section above
+  → See README_BUILD.md (for VS 2022)
+  → See DOCKER_BUILD.md (for Docker)
+
+================================================================================
+REQUIREMENTS SUMMARY
+================================================================================
+
+BEFORE YOU BUILD - Choose One:
+
+Option A: Visual Studio 2022 Community
+  Required: 10 GB disk space
+  Download: https://visualstudio.microsoft.com/vs/
+  Time: 1 hour setup + 2 min build = ~1.5 hours total first time
+
+Option B: Docker Container
+  Required: 5 GB disk space + Docker Desktop
+  Download: https://www.docker.com/products/docker-desktop
+  Time: 10 min Docker setup + 5 min build = ~15 minutes total first time
+
+Option C: Build Tools 2022
+  Required: 3 GB disk space
+  Download: https://visualstudio.microsoft.com/downloads/
+  Time: 30 min setup + 2 min build = ~40 minutes total first time
+
+FOR INSTALLATION - Always Required:
+  Required: Administrator PowerShell
+  Required: DiskBench.exe built (from the Wpf project)
+  Time: 5 minutes
+
+================================================================================
+FINAL CHECKLIST
+================================================================================
+
+Before building:
+  □ Have internet connection (for downloading)
+  □ Have administrator rights
+  □ Have at least 5 GB free disk space
+  □ All C++ source files present (ExplorerCommand.cpp, dllmain.cpp, etc.)
+  □ Visual Studio project file present (DiskBench.ShellExtension.Cpp.vcxproj)
+
+After building:
+  □ Check DLL exists (bin/Debug/ or bin/Release/)
+  □ DLL is not 0 bytes (should be 200-400 KB)
+  □ No build errors in output
+
+After installing:
+  □ PowerShell run as Administrator
+  □ Install script completed with green ✓ checkmarks
+  □ Registry entries created (HKLM\SOFTWARE\Classes\Drive\shell\DiskBench)
+  □ Approved list updated (HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved)
+
+After testing:
+  □ Right-click on drive in File Explorer
+  □ "Benchmark Drive Performance" appears in context menu
+  □ Click it → DiskBench launches with --quick parameter
+
+================================================================================
+NEED HELP?
+================================================================================
+
+Problem: Build fails
+  See: README_BUILD.md (VS 2022) or DOCKER_BUILD.md (Docker)
+  Also: TROUBLESHOOTING section above
+
+Problem: Installation fails
+  See: Install-ExplorerCommand-Cpp.ps1 (the script itself has comments)
+  Also: TROUBLESHOOTING section above
+
+Problem: Context menu doesn't appear
+  See: TROUBLESHOOTING section above
+  Check: Registry entries with 'reg query' command
+
+Problem: Don't know which build method to use
+  Read: BUILD_OPTIONS.txt
+
+Problem: Want to understand the C++ code
+  See: README_BUILD.md (C++ Features Used section)
+  See: ExplorerCommand.cpp (comments in code)
+  See: dllmain.cpp (comments in code)
+
+================================================================================
+YOU'RE ALL SET!
+================================================================================
+
+Everything you need is here:
+  ✓ Complete C++ source code
+  ✓ Visual Studio project file
+  ✓ Docker build scripts
+  ✓ Installation script
+  ✓ Comprehensive documentation
+
+Next step: Pick your build method and start!
+
+Recommended: Visual Studio 2022 Community Edition
+  → Easiest for beginners
+  → Includes IDE for editing/debugging
+  → Full documentation support
+
+Let's get that shell extension installed! 🚀
+
+================================================================================
