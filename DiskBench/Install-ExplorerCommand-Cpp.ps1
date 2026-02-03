@@ -15,14 +15,25 @@ $ShellExtensionClsid = "{33560014-F9AA-43E9-83E3-3F58B9F03810}"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-$ExePath = Join-Path $ScriptDir "DiskBench.Wpf\bin\Debug\net10.0-windows\DiskBench.exe"
+$ExePathDebug = Join-Path $ScriptDir "DiskBench.Wpf\bin\Debug\net10.0-windows\DiskBench.exe"
+$ExePathRelease = Join-Path $ScriptDir "DiskBench.Wpf\bin\Release\net10.0-windows\DiskBench.exe"
 $PublishedExePath = Join-Path $ScriptDir "publish\DiskBench.exe"
 if (Test-Path $PublishedExePath) {
     $ExePath = $PublishedExePath
+} elseif (Test-Path $ExePathRelease) {
+    $ExePath = $ExePathRelease
+} else {
+    $ExePath = $ExePathDebug
 }
 
 # C++ DLL path
-$ShellExtensionDll = Join-Path $ScriptDir "DiskBench.ShellExtension.Cpp\bin\Debug\DiskBench.ShellExtension.Cpp.dll"
+$ShellExtensionDllRelease = Join-Path $ScriptDir "DiskBench.ShellExtension.Cpp\bin\Release\DiskBench.ShellExtension.Cpp.dll"
+$ShellExtensionDllDebug = Join-Path $ScriptDir "DiskBench.ShellExtension.Cpp\bin\Debug\DiskBench.ShellExtension.Cpp.dll"
+if (Test-Path $ShellExtensionDllRelease) {
+    $ShellExtensionDll = $ShellExtensionDllRelease
+} else {
+    $ShellExtensionDll = $ShellExtensionDllDebug
+}
 
 function Register-ShellExtension {
     Write-Host "Registering C++ shell extension..." -ForegroundColor Cyan
@@ -43,11 +54,26 @@ function Register-ShellExtension {
             Write-Host "Created Approved registry key." -ForegroundColor DarkGray
         }
         Set-ItemProperty -Path $approvedKey -Name $ShellExtensionClsid -Value $AppName -ErrorAction Stop
-        Write-Host "✓ Registered in Approved list: $ShellExtensionClsid" -ForegroundColor Green
+        Write-Host "OK: Registered in Approved list: $ShellExtensionClsid" -ForegroundColor Green
     } catch {
-        Write-Host "✗ Error registering in Approved list: $_" -ForegroundColor Red
+        Write-Host "ERROR: Error registering in Approved list: $_" -ForegroundColor Red
         exit 1
     }
+
+    # Step 2b: Register COM server (CLSID -> InprocServer32)
+    Write-Host "Registering COM server..." -ForegroundColor Cyan
+    $clsidPath = "HKLM:\SOFTWARE\Classes\CLSID\$ShellExtensionClsid"
+    $inprocPath = Join-Path $clsidPath "InprocServer32"
+    if (-not (Test-Path $inprocPath)) {
+        New-Item -Path $inprocPath -Force | Out-Null
+    }
+    Set-ItemProperty -Path $clsidPath -Name "(Default)" -Value $AppName
+    Set-ItemProperty -Path $inprocPath -Name "(Default)" -Value $ShellExtensionDll
+    Set-ItemProperty -Path $inprocPath -Name "ThreadingModel" -Value "Apartment"
+    foreach ($prop in @("Class", "Assembly", "RuntimeVersion", "CodeBase")) {
+        Remove-ItemProperty -Path $inprocPath -Name $prop -ErrorAction SilentlyContinue
+    }
+    Write-Host "OK: COM server registered at $inprocPath" -ForegroundColor Green
 
     # Step 3: Register shell verbs for legacy menu
     Write-Host "Registering shell verbs..." -ForegroundColor Cyan
@@ -75,7 +101,7 @@ function Register-ShellExtension {
         } else {
             Remove-ItemProperty -Path $shellPath -Name "AppliesTo" -ErrorAction SilentlyContinue
         }
-        Write-Host "✓ Registered: $($shellRoot.Path)" -ForegroundColor Green
+        Write-Host "OK: Registered: $($shellRoot.Path)" -ForegroundColor Green
     }
 
     # Step 4: Register for Windows 11 context menu handlers
@@ -91,7 +117,7 @@ function Register-ShellExtension {
             New-Item -Path $contextPath -Force | Out-Null
         }
         Set-ItemProperty -Path $contextPath -Name "(Default)" -Value $ShellExtensionClsid
-        Write-Host "✓ Registered: $contextPath" -ForegroundColor Green
+        Write-Host "OK: Registered: $contextPath" -ForegroundColor Green
     }
 
     # Step 5: Configure registry with exe path
@@ -101,15 +127,15 @@ function Register-ShellExtension {
     }
 
     Set-ItemProperty -Path $configKey -Name "ExePath" -Value $ExePath
-    Write-Host "✓ Configured ExePath: $ExePath" -ForegroundColor Green
+    Write-Host "OK: Configured ExePath: $ExePath" -ForegroundColor Green
 
     # Step 6: Clear shell extension cache (important!)
     Write-Host "Clearing shell extension cache..." -ForegroundColor Cyan
     try {
         Remove-Item "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Cached" -Force -ErrorAction SilentlyContinue
-        Write-Host "✓ Cache cleared" -ForegroundColor Green
+        Write-Host "OK: Cache cleared" -ForegroundColor Green
     } catch {
-        Write-Host "⚠ Could not clear cache (non-critical)" -ForegroundColor Yellow
+        Write-Host "WARN: Could not clear cache (non-critical)" -ForegroundColor Yellow
     }
 
     Write-Host "Shell extension installed successfully!" -ForegroundColor Green
@@ -122,7 +148,7 @@ function Unregister-ShellExtension {
         param([string]$Path)
         if (Test-Path $Path) {
             Remove-Item -Path $Path -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Host "✓ Deleted: $Path" -ForegroundColor Green
+            Write-Host "OK: Deleted: $Path" -ForegroundColor Green
         }
     }
 
@@ -151,14 +177,21 @@ function Unregister-ShellExtension {
     $approvedKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved"
     if (Test-Path $approvedKey) {
         Remove-ItemProperty -Path $approvedKey -Name $ShellExtensionClsid -ErrorAction SilentlyContinue
-        Write-Host "✓ Removed from Approved list" -ForegroundColor Green
+        Write-Host "OK: Removed from Approved list" -ForegroundColor Green
+    }
+
+    # Remove CLSID registration
+    $clsidPath = "HKLM:\SOFTWARE\Classes\CLSID\$ShellExtensionClsid"
+    if (Test-Path $clsidPath) {
+        Remove-Item -Path $clsidPath -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "OK: Removed CLSID registration" -ForegroundColor Green
     }
 
     # Remove config
     $configKey = "HKLM:\SOFTWARE\DiskBench\ShellExtension"
     if (Test-Path $configKey) {
         Remove-Item -Path $configKey -Recurse -Force
-        Write-Host "✓ Removed configuration" -ForegroundColor Green
+        Write-Host "OK: Removed configuration" -ForegroundColor Green
     }
 
     Write-Host "Shell extension removed successfully!" -ForegroundColor Green
@@ -169,7 +202,7 @@ function Restart-Explorer {
     Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
     Start-Process explorer
-    Write-Host "✓ Explorer restarted." -ForegroundColor Green
+    Write-Host "OK: Explorer restarted." -ForegroundColor Green
 }
 
 function Stop-ExplorerIfRunning {
@@ -204,7 +237,7 @@ try {
 } finally {
     if ($stoppedExplorer) {
         Start-Process explorer
-        Write-Host "✓ Explorer restarted." -ForegroundColor Green
+        Write-Host "OK: Explorer restarted." -ForegroundColor Green
     }
 }
 
@@ -221,3 +254,4 @@ Write-Host "Next steps:" -ForegroundColor Cyan
 Write-Host "1. Right-click on a drive (C:, D:, etc.) in File Explorer" -ForegroundColor Cyan
 Write-Host "2. Look for 'Benchmark Drive Performance' in the context menu" -ForegroundColor Cyan
 Write-Host ""
+

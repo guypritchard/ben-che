@@ -1,0 +1,4 @@
+LIBRARY "DiskBench.ShellExtension.Cpp"
+EXPORTS
+    DllGetClassObject
+    DllCanUnloadNow

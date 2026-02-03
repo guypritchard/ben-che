@@ -9,6 +9,7 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>DiskBench.Wpf</RootNamespace>
     <AssemblyName>DiskBench</AssemblyName>
+    <ApplicationIcon>Assets\DiskBench.ico</ApplicationIcon>
     <!-- Suppress analyzer warnings for UI code -->
     <NoWarn>CA1416;CA1303;CA1812;CA2007</NoWarn>
   </PropertyGroup>

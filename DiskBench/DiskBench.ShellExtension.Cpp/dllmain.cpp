@@ -1,6 +1,7 @@
 // dllmain.cpp
 #include "stdafx.h"
 #include "ExplorerCommand.h"
+#include "Logger.h"
 
 HINSTANCE g_hInstance = nullptr;
 
@@ -60,6 +61,7 @@ public:
 
     STDMETHOD(LockServer)(BOOL fLock)
     {
+        UNREFERENCED_PARAMETER(fLock);
         return S_OK;
     }
 
@@ -72,6 +74,11 @@ HMODULE g_hModule = nullptr;
 
 STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID* ppv)
 {
+    {
+        wchar_t exePath[MAX_PATH] = {};
+        GetModuleFileNameW(nullptr, exePath, ARRAYSIZE(exePath));
+        LogMessage(L"DllGetClassObject pid=%lu exe=%s CLSID=%08lX", GetCurrentProcessId(), exePath, rclsid.Data1);
+    }
     if (ppv == nullptr)
         return E_POINTER;
 
@@ -86,16 +93,19 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID* ppv)
 
     HRESULT hr = pFactory->QueryInterface(riid, ppv);
     pFactory->Release();
+    LogMessage(L"DllGetClassObject returning hr=0x%08X", hr);
     return hr;
 }
 
 STDAPI DllCanUnloadNow()
 {
+    LogMessage(L"DllCanUnloadNow called");
     return S_OK;
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
+    UNREFERENCED_PARAMETER(lpReserved);
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:

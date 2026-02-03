@@ -1,11 +1,15 @@
 // ExplorerCommand.cpp
 #include "stdafx.h"
 #include "ExplorerCommand.h"
+#include "Logger.h"
 
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "oleaut32.lib")
+
+const CLSID CLSID_DiskBenchExplorerCommand =
+    { 0x33560014, 0xf9aa, 0x43e9, { 0x83, 0xe3, 0x3f, 0x58, 0xb9, 0xf0, 0x38, 0x10 } };
 
 const wchar_t* COMMAND_TITLE = L"Benchmark Drive Performance";
 const wchar_t* COMMAND_TOOLTIP = L"Run DiskBench on this drive";
@@ -14,11 +18,13 @@ const wchar_t* CONFIG_REG_PATH = L"SOFTWARE\\DiskBench\\ShellExtension";
 ExplorerCommand::ExplorerCommand() : m_refCount(1)
 {
     OutputDebugString(L"ExplorerCommand constructed\n");
+    LogMessage(L"ExplorerCommand ctor");
 }
 
 ExplorerCommand::~ExplorerCommand()
 {
     OutputDebugString(L"ExplorerCommand destructed\n");
+    LogMessage(L"ExplorerCommand dtor");
 }
 
 // IUnknown implementation
@@ -56,6 +62,9 @@ HRESULT STDMETHODCALLTYPE ExplorerCommand::GetTitle(IShellItemArray* psiItemArra
 {
     OutputDebugString(L"GetTitle\n");
 
+    UNREFERENCED_PARAMETER(psiItemArray);
+    LogMessage(L"GetTitle");
+
     if (ppszName == nullptr)
         return E_POINTER;
 
@@ -72,18 +81,33 @@ HRESULT STDMETHODCALLTYPE ExplorerCommand::GetIcon(IShellItemArray* psiItemArray
 {
     OutputDebugString(L"GetIcon\n");
 
+    UNREFERENCED_PARAMETER(psiItemArray);
+    LogMessage(L"GetIcon");
+
     if (ppszIcon == nullptr)
         return E_POINTER;
 
     wchar_t exePath[MAX_PATH] = {};
-    if (SUCCEEDED(GetExePath(exePath, ARRAYSIZE(exePath))))
+    bool hasExePath = SUCCEEDED(GetExePath(exePath, ARRAYSIZE(exePath)));
+
+    wchar_t dllPath[MAX_PATH] = {};
+    bool hasDllPath = false;
+    if (g_hInstance != nullptr)
     {
-        size_t len = wcslen(exePath) + 10; // +10 for ",0\0"
+        DWORD len = GetModuleFileNameW(g_hInstance, dllPath, ARRAYSIZE(dllPath));
+        hasDllPath = (len > 0 && len < ARRAYSIZE(dllPath));
+    }
+
+    const wchar_t* iconPath = hasExePath ? exePath : (hasDllPath ? dllPath : nullptr);
+    if (iconPath != nullptr)
+    {
+        size_t len = wcslen(iconPath) + 10; // +10 for ",0\0"
         *ppszIcon = (LPWSTR)CoTaskMemAlloc(len * sizeof(wchar_t));
         if (*ppszIcon == nullptr)
             return E_OUTOFMEMORY;
 
-        StringCchPrintf(*ppszIcon, len, L"%s,0", exePath);
+        StringCchPrintf(*ppszIcon, len, L"%s,0", iconPath);
+        LogMessage(L"GetIcon: %s", *ppszIcon);
         return S_OK;
     }
 
@@ -95,6 +119,9 @@ HRESULT STDMETHODCALLTYPE ExplorerCommand::GetIcon(IShellItemArray* psiItemArray
 HRESULT STDMETHODCALLTYPE ExplorerCommand::GetToolTip(IShellItemArray* psiItemArray, LPWSTR* ppszInfotip)
 {
     OutputDebugString(L"GetToolTip\n");
+
+    UNREFERENCED_PARAMETER(psiItemArray);
+    LogMessage(L"GetToolTip");
 
     if (ppszInfotip == nullptr)
         return E_POINTER;
@@ -112,6 +139,7 @@ HRESULT STDMETHODCALLTYPE ExplorerCommand::GetCanonicalName(GUID* pguidCommandNa
 {
     OutputDebugString(L"GetCanonicalName\n");
 
+    LogMessage(L"GetCanonicalName");
     if (pguidCommandName == nullptr)
         return E_POINTER;
 
@@ -122,6 +150,9 @@ HRESULT STDMETHODCALLTYPE ExplorerCommand::GetCanonicalName(GUID* pguidCommandNa
 HRESULT STDMETHODCALLTYPE ExplorerCommand::GetState(IShellItemArray* psiItemArray, BOOL fOkToBeSlow, EXPCMDSTATE* pCmdState)
 {
     OutputDebugString(L"GetState\n");
+
+    UNREFERENCED_PARAMETER(fOkToBeSlow);
+    LogMessage(L"GetState");
 
     if (pCmdState == nullptr)
         return E_POINTER;
@@ -152,6 +183,9 @@ HRESULT STDMETHODCALLTYPE ExplorerCommand::GetState(IShellItemArray* psiItemArra
 HRESULT STDMETHODCALLTYPE ExplorerCommand::Invoke(IShellItemArray* psiItemArray, IBindCtx* pbc)
 {
     OutputDebugString(L"Invoke\n");
+
+    UNREFERENCED_PARAMETER(pbc);
+    LogMessage(L"Invoke");
 
     if (psiItemArray == nullptr)
         return E_POINTER;
@@ -193,6 +227,7 @@ HRESULT STDMETHODCALLTYPE ExplorerCommand::GetFlags(EXPCMDFLAGS* pFlags)
 {
     OutputDebugString(L"GetFlags\n");
 
+    LogMessage(L"GetFlags");
     if (pFlags == nullptr)
         return E_POINTER;
 
@@ -204,6 +239,7 @@ HRESULT STDMETHODCALLTYPE ExplorerCommand::EnumSubCommands(IEnumExplorerCommand*
 {
     OutputDebugString(L"EnumSubCommands\n");
 
+    LogMessage(L"EnumSubCommands");
     if (ppEnum == nullptr)
         return E_POINTER;
 
@@ -214,6 +250,7 @@ HRESULT STDMETHODCALLTYPE ExplorerCommand::EnumSubCommands(IEnumExplorerCommand*
 // Helper methods
 HRESULT ExplorerCommand::GetSelectedDrivePath(IShellItemArray* psiItemArray, LPWSTR pszPath, UINT cchPath)
 {
+    LogMessage(L"GetSelectedDrivePath");
     if (psiItemArray == nullptr || pszPath == nullptr || cchPath == 0)
         return E_INVALIDARG;
 
@@ -230,19 +267,31 @@ HRESULT ExplorerCommand::GetSelectedDrivePath(IShellItemArray* psiItemArray, LPW
     
     if (SUCCEEDED(hr) && pszName != nullptr)
     {
-        // Check if it's a drive (single letter followed by :)
-        if (wcslen(pszName) == 2 && pszName[1] == L':')
+        size_t nameLen = wcslen(pszName);
+        if (nameLen >= 2 && pszName[1] == L':')
         {
-            StringCchCopy(pszPath, cchPath, pszName);
-            CoTaskMemFree(pszName);
-            psi->Release();
-            return S_OK;
+            // Accept "C:" or "C:\" only (drive root)
+            if (nameLen == 2 || (nameLen == 3 && (pszName[2] == L'\\' || pszName[2] == L'/')))
+            {
+                wchar_t drivePath[4] = { 0 };
+                drivePath[0] = towupper(pszName[0]);
+                drivePath[1] = L':';
+                drivePath[2] = L'\\';
+                drivePath[3] = L'\0';
+
+                StringCchCopy(pszPath, cchPath, drivePath);
+                CoTaskMemFree(pszName);
+                psi->Release();
+                LogMessage(L"GetSelectedDrivePath: %s", pszPath);
+                return S_OK;
+            }
         }
-        
+
         CoTaskMemFree(pszName);
     }
 
     psi->Release();
+    LogMessage(L"GetSelectedDrivePath: no drive");
     return S_FALSE;
 }
 
@@ -261,8 +310,16 @@ HRESULT ExplorerCommand::ReadExePathFromRegistry(LPWSTR pszExePath, UINT cchExeP
     
     if (result != ERROR_SUCCESS)
     {
-        OutputDebugString(L"ReadExePathFromRegistry: RegOpenKeyEx failed\n");
-        return E_FAIL;
+        OutputDebugString(L"ReadExePathFromRegistry: RegOpenKeyEx HKLM failed\n");
+        LogMessage(L"ReadExePathFromRegistry: RegOpenKeyEx HKLM failed (%ld)", result);
+
+        result = RegOpenKeyEx(HKEY_CURRENT_USER, CONFIG_REG_PATH, 0, KEY_READ, &hKey);
+        if (result != ERROR_SUCCESS)
+        {
+            OutputDebugString(L"ReadExePathFromRegistry: RegOpenKeyEx HKCU failed\n");
+            LogMessage(L"ReadExePathFromRegistry: RegOpenKeyEx HKCU failed (%ld)", result);
+            return E_FAIL;
+        }
     }
 
     wchar_t buffer[MAX_PATH] = {};
@@ -273,9 +330,11 @@ HRESULT ExplorerCommand::ReadExePathFromRegistry(LPWSTR pszExePath, UINT cchExeP
     if (result != ERROR_SUCCESS)
     {
         OutputDebugString(L"ReadExePathFromRegistry: RegQueryValueEx failed\n");
+        LogMessage(L"ReadExePathFromRegistry: RegQueryValueEx failed (%ld)", result);
         return E_FAIL;
     }
 
     StringCchCopy(pszExePath, cchExePath, buffer);
+    LogMessage(L"ReadExePathFromRegistry: %s", pszExePath);
     return S_OK;
 }

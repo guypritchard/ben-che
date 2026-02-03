@@ -19,7 +19,6 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
         <local:PercentToWidthConverter x:Key="PercentToWidth"/>
-        <local:PercentToScaleConverter x:Key="PercentToScale"/>
         <local:PercentToDashArrayConverter x:Key="PercentToDashArray"/>
     </Window.Resources>
     

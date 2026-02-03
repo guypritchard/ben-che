@@ -79,6 +79,8 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
     private int _currentWorkloadIndex;
     private int _totalTrials;
     private int _currentTrialIndex;
+    private readonly TimeSpan _progressUpdateInterval = TimeSpan.FromMilliseconds(100);
+    private DateTime _lastProgressUpdateUtc = DateTime.MinValue;
 
     [ObservableProperty]
     private string _currentWorkloadName = "";
@@ -222,6 +224,7 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
             IsPhaseActive = false;
             IsFinalizing = false;
         });
+        _lastProgressUpdateUtc = DateTime.MinValue;
     }
 
     public void OnWorkloadStart(WorkloadSpec workload, int workloadIndex, int totalWorkloads)
@@ -236,6 +239,7 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
 
     public void OnTrialStart(WorkloadSpec workload, int trialNumber, int totalTrials)
     {
+        _lastProgressUpdateUtc = DateTime.MinValue;
         Application.Current.Dispatcher.Invoke(() =>
         {
             _currentTrialIndex = trialNumber - 1; // trialNumber is 1-based
@@ -251,7 +255,15 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
 
     public void OnTrialProgress(WorkloadSpec workload, int trialNumber, TrialProgress progress)
     {
-        Application.Current.Dispatcher.Invoke(() =>
+        var now = DateTime.UtcNow;
+        if (!progress.IsFinalizing && progress.PercentComplete < 100)
+        {
+            if ((now - _lastProgressUpdateUtc) < _progressUpdateInterval)
+                return;
+        }
+        _lastProgressUpdateUtc = now;
+
+        Application.Current.Dispatcher.BeginInvoke(() =>
         {
             var phase = progress.IsWarmup ? "Warmup" : "Measuring";
 
@@ -274,7 +286,7 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
             IsFinalizing = progress.IsFinalizing;
             IsPhaseActive = true;
 
-        });
+        }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
     public void OnTrialComplete(WorkloadSpec workload, int trialNumber, TrialResult result)

@@ -44,14 +44,18 @@ REM ============================================================================
 
 echo.
 echo [1/5] Checking if Build Tools are already installed...
-set BUILDTOOLS_PATH="C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
-set MSBUILD_EXE="%BUILDTOOLS_PATH%\MSBuild\Current\Bin\MSBuild.exe"
+set "BUILDTOOLS_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
+set "MSBUILD_EXE=%BUILDTOOLS_PATH%\MSBuild\Current\Bin\MSBuild.exe"
 
-if exist "%MSBUILD_EXE%" (
-    echo Build Tools already installed at: %BUILDTOOLS_PATH%
-    echo.
-    goto :CHECK_SDK
-)
+if exist "%MSBUILD_EXE%" goto :FOUND_BUILD_TOOLS
+goto :DOWNLOAD_TOOLS
+
+:FOUND_BUILD_TOOLS
+echo Build Tools already installed at: %BUILDTOOLS_PATH%
+echo.
+goto :CHECK_SDK
+
+:DOWNLOAD_TOOLS
 
 REM ============================================================================
 REM Step 2: Download Visual Studio Build Tools
@@ -60,35 +64,21 @@ REM ============================================================================
 echo [2/5] Downloading Visual Studio Build Tools 2022...
 echo.
 
-set TEMP_DIR="%TEMP%\DiskBench_Setup"
-if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
+set "TEMP_DIR=%TEMP%\DiskBench_Setup"
+set "BUILDTOOLS_EXE=%TEMP_DIR%\vs_buildtools.exe"
 
-set BUILDTOOLS_EXE="%TEMP_DIR%\vs_buildtools.exe"
+call "%~dp0download-build-tools.bat" "%TEMP_DIR%"
 
-if exist "%BUILDTOOLS_EXE%" (
-    echo Using cached installer: %BUILDTOOLS_EXE%
-) else (
-    echo Downloading from Microsoft (this may take a few minutes)...
-    echo URL: https://aka.ms/vs/17/release/vs_buildtools.exe
+if not exist "%BUILDTOOLS_EXE%" (
     echo.
-    
-    powershell -Command "^ ^
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^ ^
-        $ProgressPreference = 'SilentlyContinue'; ^ ^
-        Invoke-WebRequest -Uri 'https://aka.ms/vs/17/release/vs_buildtools.exe' ^ ^
-        -OutFile '%BUILDTOOLS_EXE%'" 2>nul
-    
-    if not exist "%BUILDTOOLS_EXE%" (
-        echo.
-        echo ERROR: Failed to download Visual Studio Build Tools
-        echo.
-        echo Please download manually from:
-        echo   https://visualstudio.microsoft.com/downloads/
-        echo.
-        echo Look for "Visual Studio Build Tools 2022"
-        pause
-        exit /b 1
-    )
+    echo ERROR: Failed to download Visual Studio Build Tools
+    echo.
+    echo Please download manually from:
+    echo   https://visualstudio.microsoft.com/downloads/
+    echo.
+    echo Look for "Visual Studio Build Tools 2022"
+    pause
+    exit /b 1
 )
 
 echo Download complete!
@@ -133,44 +123,61 @@ REM ============================================================================
 echo [4/5] Verifying installation...
 echo.
 
-if not exist "%MSBUILD_EXE%" (
-    echo ERROR: MSBuild not found at: %MSBUILD_EXE%
-    pause
-    exit /b 1
-)
+if not exist "!MSBUILD_EXE!" goto :MSBUILD_MISSING
+echo Found MSBuild: !MSBUILD_EXE!
+goto :CHECK_SDK_HEADERS
 
-echo Found MSBuild: %MSBUILD_EXE%
+:MSBUILD_MISSING
+echo ERROR: MSBuild not found at: !MSBUILD_EXE!
+pause
+exit /b 1
+
+:CHECK_SDK_HEADERS
 
 REM Check for Windows SDK headers
 echo Checking for Windows SDK headers...
 
 set "SDK_PATH=C:\Program Files (x86)\Windows Kits\10\Include"
-if not exist "%SDK_PATH%" (
+if not exist "!SDK_PATH!" (
     echo WARNING: Windows SDK Include path not found
-    echo Expected: %SDK_PATH%
+    echo Expected: !SDK_PATH!
     echo You may need to install Windows SDK manually
-) else (
-    echo Found Windows SDK: %SDK_PATH%
-    
-    REM Check for specific headers needed for the project
-    if exist "%SDK_PATH%\10.0.22621.0\um\windows.h" (
-        echo ✓ windows.h found
-    ) else (
-        echo ⚠ windows.h not found in expected location
-    )
-    
-    if exist "%SDK_PATH%\10.0.22621.0\um\shobjidl.h" (
-        echo ✓ shobjidl.h found
-    ) else (
-        echo ⚠ shobjidl.h not found in expected location
-    )
-    
-    if exist "%SDK_PATH%\10.0.22621.0\um\shlwapi.h" (
-        echo ✓ shlwapi.h found
-    ) else (
-        echo ⚠ shlwapi.h not found in expected location
-    )
+    goto :SDK_DONE
 )
+
+echo Found Windows SDK: !SDK_PATH!
+
+REM Find the newest SDK version installed
+set "SDK_VER="
+for /f "delims=" %%D in ('dir /b /ad "!SDK_PATH!\10.0.*" 2^>nul ^| sort') do set "SDK_VER=%%D"
+
+if "!SDK_VER!"=="" (
+    echo WARNING: No Windows SDK versions found under !SDK_PATH!
+    goto :SDK_DONE
+)
+
+echo Using SDK version: !SDK_VER!
+
+REM Check for specific headers needed for the project
+if exist "!SDK_PATH!\!SDK_VER!\um\windows.h" (
+    echo OK: windows.h found
+) else (
+    echo WARN: windows.h not found
+)
+
+if exist "!SDK_PATH!\!SDK_VER!\um\shobjidl.h" (
+    echo OK: shobjidl.h found
+) else (
+    echo WARN: shobjidl.h not found
+)
+
+if exist "!SDK_PATH!\!SDK_VER!\um\shlwapi.h" (
+    echo OK: shlwapi.h found
+) else (
+    echo WARN: shlwapi.h not found
+)
+
+:SDK_DONE
 
 echo.
 
@@ -183,12 +190,16 @@ echo.
 
 set "ENV_FILE=%BUILDTOOLS_PATH%\VC\Auxiliary\Build\vcvarsall.bat"
 
-if not exist "%ENV_FILE%" (
-    echo ERROR: vcvarsall.bat not found
-    echo Expected: %ENV_FILE%
-    pause
-    exit /b 1
-)
+if not exist "!ENV_FILE!" goto :ENV_MISSING
+goto :ENV_OK
+
+:ENV_MISSING
+echo ERROR: vcvarsall.bat not found
+echo Expected: !ENV_FILE!
+pause
+exit /b 1
+
+:ENV_OK
 
 REM Create a helper batch file for building
 set "HELPER_BATCH=%~dp0build-cpp.bat"
@@ -201,27 +212,27 @@ set "HELPER_BATCH=%~dp0build-cpp.bat"
     echo setlocal enabledelayedexpansion
     echo.
     echo REM Set up environment
-    echo call "%ENV_FILE%" x64
+    echo call "!ENV_FILE!" x64
     echo.
     echo REM Navigate to project
     echo cd /d "%~dp0DiskBench.ShellExtension.Cpp"
     echo.
     echo REM Build
     echo echo Building DiskBench.ShellExtension.Cpp...
-    echo "%MSBUILD_EXE%" DiskBench.ShellExtension.Cpp.vcxproj /p:Configuration=Release /p:Platform=x64
+    echo "!MSBUILD_EXE!" DiskBench.ShellExtension.Cpp.vcxproj /p:Configuration=Release /p:Platform=x64
     echo.
     echo if %%errorlevel%% equ 0 ^(
     echo     echo.
     echo     echo Build succeeded!
     echo     echo DLL location: %%cd%%\bin\Release\DiskBench.ShellExtension.Cpp.dll
     echo     echo.
-    echo ) else ^(
+    echo ^) else ^(
     echo     echo.
     echo     echo Build failed! Check the error messages above.
     echo     echo.
     echo     pause
     echo     exit /b 1
-    echo )
+    echo ^)
 ) > "%HELPER_BATCH%"
 
 if exist "%HELPER_BATCH%" (
@@ -244,17 +255,17 @@ echo SETUP COMPLETE!
 echo ============================================================================
 echo.
 echo Installed:
-echo   ✓ Visual Studio Build Tools 2022
-echo   ✓ MSVC Compiler (C++)
-echo   ✓ Windows SDK (headers ^& libraries)
-echo   ✓ Build tools (MSBuild)
+echo   OK: Visual Studio Build Tools 2022
+echo   OK: MSVC Compiler (C++)
+echo   OK: Windows SDK (headers ^& libraries)
+echo   OK: Build tools (MSBuild)
 echo.
 echo Required Headers:
-echo   ✓ windows.h
-echo   ✓ shobjidl.h  (IExplorerCommand interface)
-echo   ✓ shlwapi.h   (string functions)
-echo   ✓ strsafe.h   (safe string functions)
-echo   ✓ objbase.h   (COM interfaces)
+echo   OK: windows.h
+echo   OK: shobjidl.h  (IExplorerCommand interface)
+echo   OK: shlwapi.h   (string functions)
+echo   OK: strsafe.h   (safe string functions)
+echo   OK: objbase.h   (COM interfaces)
 echo.
 echo All headers are installed in:
 echo   C:\Program Files (x86)\Windows Kits\10\Include

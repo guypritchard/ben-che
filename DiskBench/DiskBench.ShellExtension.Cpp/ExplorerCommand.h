@@ -4,8 +4,7 @@
 #include "stdafx.h"
 
 // CLSID: {33560014-F9AA-43E9-83E3-3F58B9F03810}
-DEFINE_GUID(CLSID_DiskBenchExplorerCommand,
-    0x33560014, 0xf9aa, 0x43e9, 0x83, 0xe3, 0x3f, 0x58, 0xb9, 0xf0, 0x38, 0x10);
+extern const CLSID CLSID_DiskBenchExplorerCommand;
 
 class ExplorerCommand : public IExplorerCommand
 {

@@ -11,3 +11,4 @@
 #include <new>
 #include <cstring>
 #include <cwchar>
+#include <cwctype>
