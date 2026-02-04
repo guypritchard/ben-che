@@ -22,7 +22,7 @@ The MSI will be written to:
 
 ## What the MSI does
 - Installs to `C:\Program Files\DiskBench`
-- Includes the WPF app, the C++ shell extension, and the sparse package
+- Includes the WPF app (self-contained single EXE), the C++ shell extension, and the sparse package
 - Runs the sparse package registration script on install
 - Runs sparse package unregister on uninstall
 

@@ -33,7 +33,8 @@
         Description="DiskBench"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png"
-        BackgroundColor="transparent" />
+        BackgroundColor="transparent"
+        AppListEntry="none" />
       <Extensions>
         <com:Extension Category="windows.comServer">
           <com:ComServer>

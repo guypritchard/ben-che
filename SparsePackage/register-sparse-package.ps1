@@ -44,6 +44,12 @@ Write-Host "Registering sparse package..." -ForegroundColor Cyan
 Write-Host "Manifest: $manifest"
 Write-Host "External location: $externalLocation"
 
+$existing = Get-AppxPackage -Name $packageName -ErrorAction SilentlyContinue
+if ($existing) {
+    Write-Host "Removing existing package: $($existing.PackageFullName)" -ForegroundColor Yellow
+    Remove-AppxPackage -Package $existing.PackageFullName
+}
+
 Add-AppxPackage -Register $manifest -ExternalLocation $externalLocation.Path -ForceApplicationShutdown
 
 $configKey = "HKCU:\SOFTWARE\DiskBench\ShellExtension"

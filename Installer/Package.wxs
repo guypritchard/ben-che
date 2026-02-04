@@ -11,16 +11,19 @@
     Compressed="yes"
     Scope="perMachine">
     <MajorUpgrade DowngradeErrorMessage="A newer version of DiskBench is already installed." />
-    <MediaTemplate />
+    <MediaTemplate EmbedCab="yes" />
 
     <Icon Id="DiskBenchIcon" SourceFile="$(var.StageDir)\DiskBench.ico" />
     <Property Id="ARPPRODUCTICON" Value="DiskBenchIcon" />
 
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
     <ui:WixUI Id="WixUI_InstallDir" />
+    <Launch Condition="Privileged" Message="Administrator privileges are required to install DiskBench." />
 
     <Feature Id="MainFeature" Title="DiskBench" Level="1">
       <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="AppShortcut" />
+      <ComponentRef Id="ShellExtensionRegistry" />
     </Feature>
 
     <CustomAction Id="SetRegisterSparse"
@@ -58,6 +61,38 @@
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="DiskBench" />
     </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="DiskBench" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <Component Id="AppShortcut" Guid="*" Directory="ApplicationProgramsFolder">
+      <Shortcut
+        Id="DiskBenchStartMenuShortcut"
+        Name="DiskBench"
+        Description="DiskBench"
+        Target="[INSTALLFOLDER]DiskBench.Wpf\bin\Release\net10.0-windows\DiskBench.exe"
+        WorkingDirectory="INSTALLFOLDER"
+        Icon="DiskBenchIcon" />
+      <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+      <RegistryValue Root="HKLM" Key="Software\DiskBench" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" />
+      <RegistryValue Root="HKLM" Key="Software\DiskBench\ShellExtension" Name="ExePath" Type="string" Value="[INSTALLFOLDER]DiskBench.Wpf\bin\Release\net10.0-windows\DiskBench.exe" KeyPath="yes" />
+    </Component>
+  </Fragment>
+
+  <Fragment>
+    <Component Id="ShellExtensionRegistry" Guid="*" Directory="INSTALLFOLDER">
+      <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{33560014-F9AA-43E9-83E3-3F58B9F03810}\InprocServer32" Value="[INSTALLFOLDER]DiskBench.ShellExtension.Cpp\bin\Release\DiskBench.ShellExtension.Cpp.dll" Type="string" KeyPath="yes" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{33560014-F9AA-43E9-83E3-3F58B9F03810}\InprocServer32" Name="ThreadingModel" Value="Apartment" Type="string" />
+
+      <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" Name="{33560014-F9AA-43E9-83E3-3F58B9F03810}" Value="DiskBench" Type="string" />
+
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shellex\ContextMenuHandlers\DiskBench" Value="{33560014-F9AA-43E9-83E3-3F58B9F03810}" Type="string" />
+    </Component>
   </Fragment>
 
   <Fragment>

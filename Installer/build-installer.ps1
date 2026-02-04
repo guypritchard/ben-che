@@ -49,10 +49,29 @@ if (-not (Test-Path $stageDir)) {
 
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
-# Build WPF app (self-contained publish)
+# Build WPF app (self-contained single-file publish)
 $wpfProj = Join-Path $repoRoot "DiskBench.Wpf\DiskBench.Wpf.csproj"
 $wpfOut = Join-Path $stageDir "DiskBench.Wpf\bin\Release\net10.0-windows"
-dotnet publish $wpfProj -c $Configuration -r win-x64 --self-contained true -o $wpfOut
+dotnet publish $wpfProj -c $Configuration -r win-x64 --self-contained true -o $wpfOut `
+    -p:PublishSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:PublishTrimmed=false
+
+$wpfExe = Join-Path $wpfOut "DiskBench.exe"
+if (-not (Test-Path $wpfExe)) {
+    Write-Host "DiskBench.exe not found after publish: $wpfExe" -ForegroundColor Red
+    exit 1
+}
+
+# Keep the app as a single EXE in the staged output.
+$publishItems = Get-ChildItem -Force $wpfOut
+$publishItems | Where-Object { $_.FullName -ne $wpfExe } | Remove-Item -Recurse -Force
+$remaining = Get-ChildItem -Force $wpfOut
+if ($remaining.Count -ne 1 -or $remaining[0].FullName -ne $wpfExe) {
+    Write-Host "Publish output is not a single EXE in $wpfOut" -ForegroundColor Red
+    $remaining | ForEach-Object { Write-Host "  - $($_.Name)" -ForegroundColor Red }
+    exit 1
+}
 
 # Build C++ shell extension
 $msbuild = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
