@@ -74,6 +74,10 @@ Desktop.ini
 publish/
 PublishOutput/
 
+# Installer output
+Installer/out/
+Installer/stage/
+
 # Benchmark test files
 diskbench_*.tmp
 
