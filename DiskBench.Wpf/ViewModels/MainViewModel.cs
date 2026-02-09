@@ -6,6 +6,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DiskBench.Core;
 using DiskBench.Win32;
+using LiveChartsCore;
+using LiveChartsCore.Defaults;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
+using SkiaSharp;
 
 namespace DiskBench.Wpf;
 
@@ -13,6 +18,14 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
 {
     private CancellationTokenSource? _cts;
     private readonly WindowsIoEngine _engine;
+    private const int MaxSpeedSamples = 200;
+    private double _chartWindowSeconds = 45;
+    private readonly ObservableCollection<ObservablePoint> _speedSamples = new();
+    private readonly ObservableCollection<ObservablePoint> _limitSamples = new();
+    private readonly ISeries[] _speedSeries;
+    private readonly Axis[] _speedXAxes;
+    private readonly Axis[] _speedYAxes;
+    private double _lastSampleSecond = -1;
 
     public MainViewModel()
     {
@@ -34,6 +47,10 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
         SelectedTrials = "3";
         
         Results = new ObservableCollection<WorkloadResultViewModel>();
+
+        _speedSeries = CreateSpeedSeries();
+        _speedXAxes = CreateSpeedXAxes();
+        _speedYAxes = CreateSpeedYAxes();
     }
 
     #region Properties
@@ -70,6 +87,9 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
 
     [ObservableProperty]
     private string _selectedTrials;
+
+    [ObservableProperty]
+    private bool _bypassOsCache = true;
 
     [ObservableProperty]
     private bool _isRunning;
@@ -112,6 +132,19 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
     [ObservableProperty]
     private ObservableCollection<WorkloadResultViewModel> _results;
 
+    public IReadOnlyList<ISeries> SpeedSeries => _speedSeries;
+    public IReadOnlyList<Axis> SpeedXAxes => _speedXAxes;
+    public IReadOnlyList<Axis> SpeedYAxes => _speedYAxes;
+
+    [ObservableProperty]
+    private double _theoreticalLimitMBps;
+
+    [ObservableProperty]
+    private string _theoreticalLimitValue = "Unknown";
+
+    [ObservableProperty]
+    private string _theoreticalLimitDetail = "Connection limit unavailable";
+
     [ObservableProperty]
     private bool _autoStart;
 
@@ -131,6 +164,7 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
     public bool ShowFinalizing => IsPhaseActive && IsFinalizing;
     public bool ShowPendingValues => IsPhaseActive && (IsWarmup || IsFinalizing);
     public bool ShowIdle => !IsPhaseActive;
+    public bool HasTheoreticalLimit => TheoreticalLimitMBps > 0;
 
     #endregion
 
@@ -153,10 +187,10 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
         {
             var fileSize = ParseFileSize(SelectedFileSize);
             var duration = ParseDuration(SelectedDuration);
+            _chartWindowSeconds = Math.Max(5, duration);
             var trials = int.Parse(SelectedTrials);
             
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var filePath = Path.Combine(SelectedDrive, $"diskbench_{SelectedProfile.Type}_{timestamp}.dat");
+            var filePath = BenchmarkPathHelper.BuildTestFilePath(SelectedDrive ?? string.Empty, SelectedProfile);
 
             var plan = UsageProfiles.CreatePlan(
                 SelectedProfile,
@@ -165,6 +199,11 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
                 trials,
                 TimeSpan.FromSeconds(5),
                 TimeSpan.FromSeconds(duration));
+
+            if (BypassOsCache)
+            {
+                plan = ApplyCacheBypass(plan);
+            }
 
             var runner = new BenchmarkRunner(_engine, this);
             var result = await runner.RunAsync(plan, _cts.Token);
@@ -223,6 +262,7 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
             IsWarmup = false;
             IsPhaseActive = false;
             IsFinalizing = false;
+            ResetSpeedChart();
         });
         _lastProgressUpdateUtc = DateTime.MinValue;
     }
@@ -250,6 +290,7 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
             IsPhaseActive = true;
             Progress = 0;
             ProgressText = "0%";
+            ResetSpeedChart();
         });
     }
 
@@ -286,6 +327,11 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
             IsFinalizing = progress.IsFinalizing;
             IsPhaseActive = true;
 
+            if (!progress.IsWarmup && !progress.IsFinalizing)
+            {
+                var mbps = progress.CurrentBytesPerSecond / (1024.0 * 1024.0);
+                AppendSpeedSample(progress.Elapsed.TotalSeconds, mbps);
+            }
         }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
@@ -345,6 +391,12 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
         OnPropertyChanged(nameof(ShowLiveValues));
         OnPropertyChanged(nameof(ShowFinalizing));
         OnPropertyChanged(nameof(ShowPendingValues));
+    }
+
+    partial void OnTheoreticalLimitMBpsChanged(double value)
+    {
+        OnPropertyChanged(nameof(HasTheoreticalLimit));
+        RefreshLimitSeries();
     }
 
     public void OnWarning(string message)
@@ -493,6 +545,7 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
         if (string.IsNullOrEmpty(SelectedDrive))
         {
             DriveInfo = null;
+            UpdateTheoreticalLimit(null);
             return;
         }
 
@@ -519,13 +572,320 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
                 UsedPercent = usedPercent,
                 UsedText = $"{FormatSize(usedBytes)} used of {FormatSize(info.TotalSize)}"
             };
+            UpdateTheoreticalLimit(details);
         }
         catch
         {
             DriveInfo = null;
+            UpdateTheoreticalLimit(null);
         }
         
         OnPropertyChanged(nameof(HasDriveInfo));
+    }
+
+    private static BenchmarkPlan ApplyCacheBypass(BenchmarkPlan plan)
+    {
+        var workloads = plan.Workloads.Select(workload => new WorkloadSpec
+        {
+            Name = workload.Name,
+            FilePath = workload.FilePath,
+            FileSize = workload.FileSize,
+            BlockSize = workload.BlockSize,
+            Pattern = workload.Pattern,
+            WritePercent = workload.WritePercent,
+            QueueDepth = workload.QueueDepth,
+            Threads = workload.Threads,
+            Region = workload.Region,
+            FlushPolicy = workload.FlushPolicy,
+            FlushInterval = workload.FlushInterval,
+            NoBuffering = true,
+            WriteThrough = true
+        }).ToList();
+
+        return new BenchmarkPlan
+        {
+            Name = plan.Name,
+            Workloads = workloads,
+            Trials = plan.Trials,
+            WarmupDuration = plan.WarmupDuration,
+            MeasuredDuration = plan.MeasuredDuration,
+            Seed = plan.Seed,
+            ComputeConfidenceIntervals = plan.ComputeConfidenceIntervals,
+            BootstrapIterations = plan.BootstrapIterations,
+            CollectTimeSeries = plan.CollectTimeSeries,
+            ReuseExistingFiles = plan.ReuseExistingFiles,
+            DeleteOnComplete = plan.DeleteOnComplete,
+            TrackAllocations = plan.TrackAllocations
+        };
+    }
+
+    private ISeries[] CreateSpeedSeries()
+    {
+        var speedStroke = new SolidColorPaint(new SKColor(88, 166, 255), 2);
+        var speedFill = new SolidColorPaint(new SKColor(88, 166, 255, 40));
+        var limitStroke = new SolidColorPaint(new SKColor(163, 113, 247), 1);
+
+        return
+        [
+            new LineSeries<ObservablePoint>
+            {
+                Values = _speedSamples,
+                Stroke = speedStroke,
+                Fill = speedFill,
+                GeometrySize = 0,
+                LineSmoothness = 0.2,
+                Name = "Speed"
+            },
+            new LineSeries<ObservablePoint>
+            {
+                Values = _limitSamples,
+                Stroke = limitStroke,
+                Fill = null,
+                GeometrySize = 0,
+                LineSmoothness = 0,
+                Name = "Limit"
+            }
+        ];
+    }
+
+    private Axis[] CreateSpeedXAxes()
+    {
+        var labelPaint = new SolidColorPaint(new SKColor(139, 148, 158));
+        var separatorPaint = new SolidColorPaint(new SKColor(48, 54, 61, 140));
+
+        return
+        [
+            new Axis
+            {
+                Labeler = value => $"{value:0}s",
+                TextSize = 10,
+                LabelsPaint = labelPaint,
+                SeparatorsPaint = separatorPaint,
+                MinLimit = 0,
+                MinStep = 5
+            }
+        ];
+    }
+
+    private Axis[] CreateSpeedYAxes()
+    {
+        var labelPaint = new SolidColorPaint(new SKColor(139, 148, 158));
+        var separatorPaint = new SolidColorPaint(new SKColor(48, 54, 61, 140));
+
+        return
+        [
+            new Axis
+            {
+                Labeler = value => $"{value:0} MB/s",
+                TextSize = 10,
+                LabelsPaint = labelPaint,
+                SeparatorsPaint = separatorPaint,
+                MinLimit = 0
+            }
+        ];
+    }
+
+    private void ResetSpeedChart()
+    {
+        _speedSamples.Clear();
+        _limitSamples.Clear();
+        _lastSampleSecond = -1;
+        if (SpeedXAxes.Count > 0)
+        {
+            var window = Math.Max(5, _chartWindowSeconds);
+            SpeedXAxes[0].MinLimit = 0;
+            SpeedXAxes[0].MaxLimit = window;
+        }
+    }
+
+    private void AppendSpeedSample(double elapsedSeconds, double mbps)
+    {
+        if (elapsedSeconds <= _lastSampleSecond)
+            return;
+
+        _lastSampleSecond = elapsedSeconds;
+        _speedSamples.Add(new ObservablePoint(elapsedSeconds, mbps));
+
+        if (TheoreticalLimitMBps > 0)
+        {
+            _limitSamples.Add(new ObservablePoint(elapsedSeconds, TheoreticalLimitMBps));
+        }
+
+        while (_speedSamples.Count > MaxSpeedSamples)
+        {
+            _speedSamples.RemoveAt(0);
+            if (_limitSamples.Count > 0)
+            {
+                _limitSamples.RemoveAt(0);
+            }
+        }
+
+        if (SpeedXAxes.Count > 0)
+        {
+            var window = Math.Max(5, _chartWindowSeconds);
+            var min = Math.Max(0, elapsedSeconds - window);
+            SpeedXAxes[0].MinLimit = min;
+            SpeedXAxes[0].MaxLimit = Math.Max(window, elapsedSeconds);
+        }
+    }
+
+    private void RefreshLimitSeries()
+    {
+        _limitSamples.Clear();
+        if (TheoreticalLimitMBps <= 0)
+        {
+            return;
+        }
+
+        foreach (var point in _speedSamples)
+        {
+            _limitSamples.Add(new ObservablePoint(point.X, TheoreticalLimitMBps));
+        }
+    }
+
+    private void UpdateTheoreticalLimit(DriveDetails? details)
+    {
+        var estimate = EstimateTheoreticalLimit(details);
+        if (estimate.LimitMBps is null || estimate.LimitMBps <= 0)
+        {
+            TheoreticalLimitMBps = 0;
+            TheoreticalLimitValue = "Unknown";
+            TheoreticalLimitDetail = estimate.Detail;
+            return;
+        }
+
+        TheoreticalLimitMBps = estimate.LimitMBps.Value;
+        TheoreticalLimitValue = FormatSpeed(TheoreticalLimitMBps * 1024 * 1024);
+        TheoreticalLimitDetail = estimate.Detail;
+    }
+
+    private static (double? LimitMBps, string Detail) EstimateTheoreticalLimit(DriveDetails? details)
+    {
+        if (details == null)
+        {
+            return (null, "Connection limit unavailable");
+        }
+
+        return details.BusType switch
+        {
+            StorageBusType.NVMe => EstimateNvmeLimit(details),
+            StorageBusType.Sata => EstimateSataLimit(details),
+            StorageBusType.Sas => EstimateSasLimit(details),
+            StorageBusType.Usb => EstimateUsbLimit(details),
+            StorageBusType.Sd or StorageBusType.Mmc => (90, "SD/UHS-I (est.)"),
+            StorageBusType.Ufs => (1500, "UFS (est.)"),
+            StorageBusType.Scsi => (320, "SCSI Ultra320"),
+            StorageBusType.iScsi => (125, "iSCSI (1 GbE est.)"),
+            StorageBusType.Raid or StorageBusType.StorageSpaces or StorageBusType.Virtual or StorageBusType.FileBackedVirtual => (null, "Array/virtualized (limit varies)"),
+            _ => (null, GetBusVersionDetail(details, $"{details.BusTypeDescription} (limit unknown)"))
+        };
+    }
+
+    private static (double? LimitMBps, string Detail) EstimateNvmeLimit(DriveDetails details)
+    {
+        var gen = GetPcieGeneration(details);
+        if (gen.HasValue)
+        {
+            return gen.Value switch
+            {
+                3 => (3940, "PCIe Gen3 x4 (adapter reported)"),
+                4 => (7880, "PCIe Gen4 x4 (adapter reported)"),
+                5 => (15750, "PCIe Gen5 x4 (adapter reported)"),
+                _ => (7000, $"PCIe Gen{gen.Value} x4 (adapter reported)")
+            };
+        }
+
+        return (7000, GetBusVersionDetail(details, "PCIe Gen4 x4 (est.)"));
+    }
+
+    private static (double? LimitMBps, string Detail) EstimateSataLimit(DriveDetails details)
+    {
+        var major = details.BusMajorVersion;
+        return major switch
+        {
+            3 => (550, "SATA III 6 Gb/s (adapter reported)"),
+            2 => (300, "SATA II 3 Gb/s (adapter reported)"),
+            1 => (150, "SATA I 1.5 Gb/s (adapter reported)"),
+            _ => (550, "SATA III 6 Gb/s (est.)")
+        };
+    }
+
+    private static (double? LimitMBps, string Detail) EstimateSasLimit(DriveDetails details)
+    {
+        var major = details.BusMajorVersion;
+        return major switch
+        {
+            3 => (1200, "SAS 12 Gb/s (adapter reported)"),
+            2 => (600, "SAS 6 Gb/s (adapter reported)"),
+            1 => (300, "SAS 3 Gb/s (adapter reported)"),
+            _ => (1200, "SAS 12 Gb/s (est.)")
+        };
+    }
+
+    private static (double? LimitMBps, string Detail) EstimateUsbLimit(DriveDetails details)
+    {
+        var major = details.BusMajorVersion;
+        var minor = details.BusMinorVersion ?? 0;
+
+        if (major is >= 3)
+        {
+            if (minor >= 2)
+            {
+                return (1000, "USB 3.2 10 Gb/s (adapter reported)");
+            }
+
+            if (minor >= 1)
+            {
+                return (1000, "USB 3.1 10 Gb/s (adapter reported)");
+            }
+
+            return (450, "USB 3.0 5 Gb/s (adapter reported)");
+        }
+
+        if (major == 2)
+        {
+            return (40, "USB 2.0 Hi-Speed (adapter reported)");
+        }
+
+        var hint = $"{details.VendorId} {details.ProductId}";
+        if (hint.Contains("USB2", StringComparison.OrdinalIgnoreCase) ||
+            hint.Contains("USB 2", StringComparison.OrdinalIgnoreCase))
+        {
+            return (40, "USB 2.0 Hi-Speed (est.)");
+        }
+
+        if (hint.Contains("USB3", StringComparison.OrdinalIgnoreCase) ||
+            hint.Contains("USB 3", StringComparison.OrdinalIgnoreCase) ||
+            hint.Contains("USB 3.0", StringComparison.OrdinalIgnoreCase) ||
+            hint.Contains("USB 3.1", StringComparison.OrdinalIgnoreCase) ||
+            hint.Contains("USB 3.2", StringComparison.OrdinalIgnoreCase))
+        {
+            return (450, "USB 3.x SuperSpeed (est.)");
+        }
+
+        return (450, "USB 3.x SuperSpeed (est.)");
+    }
+
+    private static int? GetPcieGeneration(DriveDetails details)
+    {
+        var major = details.BusMajorVersion;
+        if (major is null || major <= 0)
+        {
+            return null;
+        }
+
+        return major is >= 3 and <= 6 ? major : null;
+    }
+
+    private static string GetBusVersionDetail(DriveDetails details, string fallback)
+    {
+        if (details.BusMajorVersion is null)
+        {
+            return fallback;
+        }
+
+        var minor = details.BusMinorVersion ?? 0;
+        return $"{fallback} (bus v{details.BusMajorVersion}.{minor})";
     }
 
     private static long ParseFileSize(string size)
@@ -574,6 +934,59 @@ public partial class MainViewModel : ObservableObject, IBenchmarkSink
     }
 
     #endregion
+}
+
+internal static class BenchmarkPathHelper
+{
+    public static string BuildTestFilePath(string selectedDrive, UsageProfile profile)
+    {
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var fileName = $"diskbench_{profile.Type}_{timestamp}.dat";
+
+        var driveRoot = GetDriveRoot(selectedDrive);
+        var windowsRoot = Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.Windows)) ?? string.Empty;
+        var tempRoot = Path.GetPathRoot(Path.GetTempPath()) ?? string.Empty;
+
+        string baseDirectory;
+        if (string.Equals(driveRoot, windowsRoot, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(driveRoot, tempRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            baseDirectory = Path.Combine(Path.GetTempPath(), "DiskBench", $"run_{timestamp}");
+        }
+        else
+        {
+            baseDirectory = Path.Combine(driveRoot, "DiskBench", $"run_{timestamp}");
+        }
+
+        return Path.Combine(baseDirectory, fileName);
+    }
+
+    private static string GetDriveRoot(string? selectedDrive)
+    {
+        if (string.IsNullOrWhiteSpace(selectedDrive))
+        {
+            return Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\";
+        }
+
+        var trimmed = selectedDrive.Trim();
+        var spaceIndex = trimmed.AsSpan().IndexOf(' ');
+        if (spaceIndex > 0)
+        {
+            trimmed = trimmed[..spaceIndex];
+        }
+
+        if (trimmed.Length == 2 && trimmed[1] == ':')
+        {
+            trimmed += "\\";
+        }
+
+        if (trimmed.Length >= 3 && trimmed[1] == ':')
+        {
+            return trimmed[..3];
+        }
+
+        return Path.GetPathRoot(trimmed) ?? trimmed;
+    }
 }
 
 public class DriveInfoViewModel
