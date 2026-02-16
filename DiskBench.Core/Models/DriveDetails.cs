@@ -83,6 +83,16 @@ public sealed class DriveDetails
     public StorageBusType BusType { get; init; }
 
     /// <summary>
+    /// Major version of the bus/protocol if reported by the adapter.
+    /// </summary>
+    public int? BusMajorVersion { get; init; }
+
+    /// <summary>
+    /// Minor version of the bus/protocol if reported by the adapter.
+    /// </summary>
+    public int? BusMinorVersion { get; init; }
+
+    /// <summary>
     /// Logical sector size in bytes.
     /// </summary>
     public int LogicalSectorSize { get; init; }

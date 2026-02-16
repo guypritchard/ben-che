@@ -9,8 +9,15 @@ $packageName = "DiskBench.Sparse"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $manifest = Join-Path $scriptDir "AppxManifest.xml"
 $externalLocation = Resolve-Path (Join-Path $scriptDir "..")
-$exePath = Join-Path $externalLocation "DiskBench.Wpf\\bin\\Release\\net10.0-windows\\DiskBench.exe"
-$dllPath = Join-Path $externalLocation "DiskBench.ShellExtension.Cpp\\bin\\Release\\DiskBench.ShellExtension.Cpp.dll"
+$exePath = Join-Path $externalLocation.Path "DiskBench.Wpf"
+$exePath = Join-Path $exePath "bin"
+$exePath = Join-Path $exePath "Release"
+$exePath = Join-Path $exePath "net10.0-windows"
+$exePath = Join-Path $exePath "DiskBench.exe"
+$dllPath = Join-Path $externalLocation.Path "DiskBench.ShellExtension.Cpp"
+$dllPath = Join-Path $dllPath "bin"
+$dllPath = Join-Path $dllPath "Release"
+$dllPath = Join-Path $dllPath "DiskBench.ShellExtension.Cpp.dll"
 
 if (-not (Test-Path $manifest)) {
     Write-Host "Manifest not found: $manifest" -ForegroundColor Red
@@ -24,6 +31,16 @@ if ($Uninstall) {
         Write-Host "Removed package: $($pkg.PackageFullName)" -ForegroundColor Green
     } else {
         Write-Host "Package not found: $packageName" -ForegroundColor Yellow
+    }
+    $configKey = "HKCU:\SOFTWARE\DiskBench\ShellExtension"
+    if (Test-Path $configKey) {
+        Remove-Item -Path $configKey -Recurse -Force
+        Write-Host "Removed HKCU config: $configKey" -ForegroundColor Green
+    }
+    $configKey = "HKLM:\SOFTWARE\DiskBench\ShellExtension"
+    if (Test-Path $configKey) {
+        Remove-Item -Path $configKey -Recurse -Force
+        Write-Host "Removed HKLM config: $configKey" -ForegroundColor Green
     }
     exit 0
 }
@@ -52,11 +69,23 @@ if ($existing) {
 
 Add-AppxPackage -Register $manifest -ExternalLocation $externalLocation.Path -ForceApplicationShutdown
 
-$configKey = "HKCU:\SOFTWARE\DiskBench\ShellExtension"
-if (-not (Test-Path $configKey)) {
-    New-Item -Path $configKey -Force | Out-Null
+function Set-ExePath {
+    param(
+        [string]$RootPath,
+        [string]$TargetPath
+    )
+    if (-not (Test-Path $RootPath)) {
+        New-Item -Path $RootPath -Force | Out-Null
+    }
+    Set-ItemProperty -Path $RootPath -Name "ExePath" -Value $TargetPath
+    Write-Host "Configured $RootPath ExePath: $TargetPath" -ForegroundColor Green
 }
-Set-ItemProperty -Path $configKey -Name "ExePath" -Value $exePath
-Write-Host "Configured HKCU ExePath: $exePath" -ForegroundColor Green
+
+Set-ExePath -RootPath "HKCU:\SOFTWARE\DiskBench\ShellExtension" -TargetPath $exePath
+try {
+    Set-ExePath -RootPath "HKLM:\SOFTWARE\DiskBench\ShellExtension" -TargetPath $exePath
+} catch {
+    Write-Host "Warning: Failed to set HKLM ExePath (insufficient rights?)" -ForegroundColor Yellow
+}
 
 Write-Host "Done." -ForegroundColor Green

@@ -1,4 +1,3 @@
-LIBRARY "DiskBench.ShellExtension.Cpp"
 EXPORTS
-    DllGetClassObject
-    DllCanUnloadNow
+    DllGetClassObject PRIVATE
+    DllCanUnloadNow PRIVATE

@@ -266,6 +266,32 @@ internal struct StorageDeviceDescriptor
 }
 
 /// <summary>
+/// STORAGE_ADAPTER_DESCRIPTOR structure.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct StorageAdapterDescriptor
+{
+    public uint Version;
+    public uint Size;
+    public uint MaximumTransferLength;
+    public uint MaximumPhysicalPages;
+    public uint AlignmentMask;
+    [MarshalAs(UnmanagedType.U1)]
+    public bool AdapterUsesPio;
+    [MarshalAs(UnmanagedType.U1)]
+    public bool AdapterScansDown;
+    [MarshalAs(UnmanagedType.U1)]
+    public bool CommandQueueing;
+    [MarshalAs(UnmanagedType.U1)]
+    public bool AcceleratedTransfer;
+    public StorageBusType BusType;
+    public ushort BusMajorVersion;
+    public ushort BusMinorVersion;
+    public byte SrbType;
+    public byte AddressType;
+}
+
+/// <summary>
 /// Storage bus types from Windows SDK.
 /// </summary>
 internal enum StorageBusType

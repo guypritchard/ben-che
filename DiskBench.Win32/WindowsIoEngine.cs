@@ -380,20 +380,25 @@ public sealed class WindowsIoEngine : IBenchmarkEngine
             {
                 ref var entry = ref completionEntries[i];
                 
-                // Find the slot - we use completion key to store index
-                var slot = slotPool[(int)entry.CompletionKey];
-                if (!slot.IsPending)
+                // Find the slot by OVERLAPPED pointer
+                var slot = slotPool.FindByOverlapped(entry.Overlapped);
+                if (slot == null || !slot.IsPending)
                 {
                     continue;
                 }
 
                 slot.IsPending = false;
                 long latencyTicks = now - slot.SubmitTimestamp;
+                int bytesTransferred = (int)entry.NumberOfBytesTransferred;
+                if (bytesTransferred <= 0)
+                {
+                    continue;
+                }
 
                 // Record metrics only during measured phase
                 if (inMeasuredPhase)
                 {
-                    metrics.RecordCompletion(now, latencyTicks, slot.Size, slot.IsWrite);
+                    metrics.RecordCompletion(now, latencyTicks, bytesTransferred, slot.IsWrite);
                 }
 
                 // Re-issue IO if we're still running
@@ -566,8 +571,11 @@ public sealed class WindowsIoEngine : IBenchmarkEngine
             {
                 for (int i = 0; i < numCompleted; i++)
                 {
-                    var slot = slotPool[(int)completionEntries[i].CompletionKey];
-                    slot.IsPending = false;
+                    var slot = slotPool.FindByOverlapped(completionEntries[i].Overlapped);
+                    if (slot != null)
+                    {
+                        slot.IsPending = false;
+                    }
                 }
             }
         }

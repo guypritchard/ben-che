@@ -179,6 +179,8 @@ internal static class DiskInfo
                 FreeSpace = driveInfo.AvailableFreeSpace,
                 FileSystem = driveInfo.DriveFormat,
                 BusType = deviceInfo.BusType,
+                BusMajorVersion = deviceInfo.BusMajorVersion,
+                BusMinorVersion = deviceInfo.BusMinorVersion,
                 LogicalSectorSize = logicalSector,
                 PhysicalSectorSize = physicalSector,
                 VendorId = deviceInfo.VendorId,
@@ -200,7 +202,9 @@ internal static class DiskInfo
         string? ProductId,
         string? SerialNumber,
         bool IsRemovable,
-        bool SupportsCommandQueuing);
+        bool SupportsCommandQueuing,
+        int? BusMajorVersion,
+        int? BusMinorVersion);
 
     private static DeviceInfo GetDeviceDescriptor(string drivePath)
     {
@@ -221,7 +225,7 @@ internal static class DiskInfo
 
         if (handle == NativeMethods.INVALID_HANDLE_VALUE)
         {
-            return new DeviceInfo(CoreBusType.Unknown, null, null, null, false, false);
+            return new DeviceInfo(CoreBusType.Unknown, null, null, null, false, false, null, null);
         }
 
         try
@@ -260,13 +264,16 @@ internal static class DiskInfo
                     string? productId = ExtractString(descriptorPtr, descriptor.ProductIdOffset);
                     string? serialNumber = ExtractString(descriptorPtr, descriptor.SerialNumberOffset);
 
+                    var (busMajor, busMinor) = TryGetAdapterDescriptor(handle);
                     return new DeviceInfo(
                         MapBusType(descriptor.BusType),
                         vendorId,
                         productId,
                         serialNumber,
                         descriptor.RemovableMedia,
-                        descriptor.CommandQueueing);
+                        descriptor.CommandQueueing,
+                        busMajor,
+                        busMinor);
                 }
             }
             finally
@@ -280,7 +287,56 @@ internal static class DiskInfo
             NativeMethods.CloseHandle(handle);
         }
 
-        return new DeviceInfo(CoreBusType.Unknown, null, null, null, false, false);
+        return new DeviceInfo(CoreBusType.Unknown, null, null, null, false, false, null, null);
+    }
+
+    private static (int? Major, int? Minor) TryGetAdapterDescriptor(IntPtr handle)
+    {
+        var query = new StoragePropertyQuery
+        {
+            PropertyId = NativeMethods.StorageAdapterProperty,
+            QueryType = NativeMethods.PropertyStandardQuery
+        };
+
+        var querySize = Marshal.SizeOf<StoragePropertyQuery>();
+        var descriptorSize = Marshal.SizeOf<StorageAdapterDescriptor>();
+
+        var queryPtr = Marshal.AllocHGlobal(querySize);
+        var descriptorPtr = Marshal.AllocHGlobal(descriptorSize);
+
+        try
+        {
+            Marshal.StructureToPtr(query, queryPtr, false);
+
+            if (NativeMethods.DeviceIoControl(
+                handle,
+                NativeMethods.IOCTL_STORAGE_QUERY_PROPERTY,
+                queryPtr,
+                (uint)querySize,
+                descriptorPtr,
+                (uint)descriptorSize,
+                out _,
+                IntPtr.Zero))
+            {
+                var descriptor = Marshal.PtrToStructure<StorageAdapterDescriptor>(descriptorPtr);
+                var major = descriptor.BusMajorVersion > 0 ? descriptor.BusMajorVersion : (ushort)0;
+                var minor = descriptor.BusMinorVersion > 0 ? descriptor.BusMinorVersion : (ushort)0;
+
+                if (major == 0 && minor == 0)
+                {
+                    return (null, null);
+                }
+
+                return (major, minor);
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(queryPtr);
+            Marshal.FreeHGlobal(descriptorPtr);
+        }
+
+        return (null, null);
     }
 
     private static string? ExtractString(IntPtr buffer, uint offset)

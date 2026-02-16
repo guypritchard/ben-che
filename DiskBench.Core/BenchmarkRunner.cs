@@ -34,19 +34,52 @@ public sealed class BenchmarkRunner
 
         ValidatePlan(plan);
 
+        Dictionary<string, FileStream>? deleteOnCloseHandles = null;
+        HashSet<string>? deleteOnCloseDirectories = null;
+        if (plan.DeleteOnComplete)
+        {
+            deleteOnCloseHandles = new Dictionary<string, FileStream>(StringComparer.OrdinalIgnoreCase);
+            deleteOnCloseDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
         var workloadResults = new List<WorkloadResult>();
 
-        for (int i = 0; i < plan.Workloads.Count; i++)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            for (int i = 0; i < plan.Workloads.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
 
-            var workload = plan.Workloads[i];
-            _sink.OnWorkloadStart(workload, i, plan.Workloads.Count);
+                var workload = plan.Workloads[i];
+                _sink.OnWorkloadStart(workload, i, plan.Workloads.Count);
 
-            var result = await RunWorkloadAsync(plan, workload, i, cancellationToken).ConfigureAwait(false);
-            workloadResults.Add(result);
+                var result = await RunWorkloadAsync(
+                        plan,
+                        workload,
+                        i,
+                        deleteOnCloseHandles,
+                        deleteOnCloseDirectories,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                workloadResults.Add(result);
 
-            _sink.OnWorkloadComplete(workload, result);
+                _sink.OnWorkloadComplete(workload, result);
+            }
+        }
+        finally
+        {
+            if (deleteOnCloseHandles != null)
+            {
+                foreach (var handle in deleteOnCloseHandles.Values)
+                {
+                    await handle.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+
+            if (deleteOnCloseDirectories != null)
+            {
+                TryDeleteDirectories(deleteOnCloseDirectories);
+            }
         }
 
         var endTime = DateTimeOffset.UtcNow;
@@ -149,6 +182,14 @@ public sealed class BenchmarkRunner
                 {
                     File.Delete(filePath);
                 }
+
+                var directory = Path.GetDirectoryName(filePath);
+                if (!string.IsNullOrEmpty(directory) &&
+                    Directory.Exists(directory) &&
+                    IsDirectoryEmpty(directory))
+                {
+                    Directory.Delete(directory, false);
+                }
             }
             catch (IOException ex)
             {
@@ -166,6 +207,8 @@ public sealed class BenchmarkRunner
         BenchmarkPlan plan,
         WorkloadSpec workload,
         int workloadIndex,
+        Dictionary<string, FileStream>? deleteOnCloseHandles,
+        HashSet<string>? deleteOnCloseDirectories,
         CancellationToken cancellationToken)
     {
         // Prepare the file
@@ -184,6 +227,11 @@ public sealed class BenchmarkRunner
             {
                 _sink.OnWarning(warning);
             }
+        }
+
+        if (deleteOnCloseHandles != null)
+        {
+            EnsureDeleteOnCloseHandle(prepareResult.FilePath, deleteOnCloseHandles, deleteOnCloseDirectories);
         }
 
         // Validate alignment for NO_BUFFERING
@@ -236,6 +284,65 @@ public sealed class BenchmarkRunner
 
         // Aggregate results
         return AggregateTrials(workload, trialResults, plan.ComputeConfidenceIntervals, plan.BootstrapIterations);
+    }
+
+    private static void EnsureDeleteOnCloseHandle(
+        string filePath,
+        Dictionary<string, FileStream> handles,
+        HashSet<string>? directories)
+    {
+        if (handles.ContainsKey(filePath))
+        {
+            return;
+        }
+
+        var directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        if (!string.IsNullOrEmpty(directory))
+        {
+            directories?.Add(directory);
+        }
+
+        var stream = new FileStream(
+            filePath,
+            FileMode.OpenOrCreate,
+            FileAccess.ReadWrite,
+            FileShare.ReadWrite | FileShare.Delete,
+            1,
+            FileOptions.DeleteOnClose);
+
+        handles.Add(filePath, stream);
+    }
+
+    private static void TryDeleteDirectories(HashSet<string> directories)
+    {
+        foreach (var directory in directories.OrderByDescending(d => d.Length))
+        {
+            try
+            {
+                if (Directory.Exists(directory) && IsDirectoryEmpty(directory))
+                {
+                    Directory.Delete(directory, false);
+                }
+            }
+            catch (IOException)
+            {
+                // Best-effort cleanup
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Best-effort cleanup
+            }
+        }
+    }
+
+    private static bool IsDirectoryEmpty(string directory)
+    {
+        return !Directory.EnumerateFileSystemEntries(directory).Any();
     }
 
     private static WorkloadResult AggregateTrials(

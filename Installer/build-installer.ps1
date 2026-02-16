@@ -102,7 +102,7 @@ Ensure-WixExtension "WixToolset.UI.wixext"
 
 # Build MSI
 $msiPath = Join-Path $outDir "DiskBench.msi"
-wix build -o $msiPath -d StageDir=$stageDir $scriptDir\Package.wxs `
+wix build -arch x64 -o $msiPath -d StageDir=$stageDir $scriptDir\Package.wxs `
     -ext WixToolset.Util.wixext `
     -ext WixToolset.UI.wixext
 if ($LASTEXITCODE -ne 0) {

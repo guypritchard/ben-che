@@ -32,13 +32,19 @@
     <CustomAction Id="SetUnregisterSparse"
                   Property="UnregisterSparse"
                   Value="&quot;[SystemFolder]WindowsPowerShell\\v1.0\\powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;[INSTALLFOLDER]SparsePackage\\register-sparse-package.ps1&quot; -Uninstall" />
+    <CustomAction Id="SetRestartExplorer"
+                  Property="RestartExplorer"
+                  Value="&quot;[SystemFolder]cmd.exe&quot; /c taskkill /f /im explorer.exe &gt;nul 2&gt;&amp;1 &amp; start explorer.exe" />
+    <CustomAction Id="SetCleanupLegacyContextMenu"
+                  Property="CleanupLegacyContextMenu"
+                  Value="&quot;[SystemFolder]reg.exe&quot; delete &quot;HKLM\\SOFTWARE\\Classes\\Drive\\shellex\\ContextMenuHandlers\\DiskBench&quot; /f" />
 
     <CustomAction Id="RegisterSparse"
                   BinaryRef="Wix4UtilCA_X64"
                   DllEntry="WixQuietExec"
                   Execute="deferred"
                   Return="ignore"
-                  Impersonate="no"
+                  Impersonate="yes"
                   HideTarget="yes" />
 
     <CustomAction Id="UnregisterSparse"
@@ -46,12 +52,30 @@
                   DllEntry="WixQuietExec"
                   Execute="deferred"
                   Return="ignore"
-                  Impersonate="no"
+                  Impersonate="yes"
+                  HideTarget="yes" />
+    <CustomAction Id="RestartExplorer"
+                  BinaryRef="Wix4UtilCA_X64"
+                  DllEntry="WixQuietExec"
+                  Execute="commit"
+                  Return="ignore"
+                  Impersonate="yes"
+                  HideTarget="yes" />
+    <CustomAction Id="CleanupLegacyContextMenu"
+                  BinaryRef="Wix4UtilCA_X64"
+                  DllEntry="WixQuietExec"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="yes"
                   HideTarget="yes" />
 
     <InstallExecuteSequence>
+      <Custom Action="SetCleanupLegacyContextMenu" After="InstallFiles" Condition="NOT Installed" />
+      <Custom Action="CleanupLegacyContextMenu" After="SetCleanupLegacyContextMenu" Condition="NOT Installed" />
       <Custom Action="SetRegisterSparse" After="InstallFiles" Condition="NOT Installed" />
       <Custom Action="RegisterSparse" After="SetRegisterSparse" Condition="NOT Installed" />
+      <Custom Action="SetRestartExplorer" After="InstallFiles" Condition="NOT Installed" />
+      <Custom Action="RestartExplorer" After="InstallFinalize" Condition="NOT Installed" />
       <Custom Action="SetUnregisterSparse" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot;" />
       <Custom Action="UnregisterSparse" After="SetUnregisterSparse" Condition="REMOVE=&quot;ALL&quot;" />
     </InstallExecuteSequence>
@@ -91,7 +115,11 @@
 
       <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" Name="{33560014-F9AA-43E9-83E3-3F58B9F03810}" Value="DiskBench" Type="string" />
 
-      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shellex\ContextMenuHandlers\DiskBench" Value="{33560014-F9AA-43E9-83E3-3F58B9F03810}" Type="string" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shell\DiskBench" Name="MUIVerb" Value="Benchmark Drive Performance" Type="string" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shell\DiskBench" Name="Icon" Value="[INSTALLFOLDER]DiskBench.ico" Type="string" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shell\DiskBench" Name="Position" Value="Top" Type="string" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shell\DiskBench" Name="ExplorerCommandHandler" Value="{33560014-F9AA-43E9-83E3-3F58B9F03810}" Type="string" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shell\DiskBench" Name="CommandStateHandler" Value="{33560014-F9AA-43E9-83E3-3F58B9F03810}" Type="string" />
     </Component>
   </Fragment>
 

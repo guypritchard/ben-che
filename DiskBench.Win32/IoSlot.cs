@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace DiskBench.Win32;
@@ -8,8 +9,7 @@ namespace DiskBench.Win32;
 /// </summary>
 internal sealed class IoSlot : IDisposable
 {
-    private GCHandle _overlappedHandle;
-    private NativeOverlapped _overlapped;
+    private IntPtr _overlappedPtr;
     private bool _disposed;
 
     /// <summary>
@@ -50,12 +50,12 @@ internal sealed class IoSlot : IDisposable
     /// <summary>
     /// Gets a pointer to the pinned OVERLAPPED structure.
     /// </summary>
-    public IntPtr OverlappedPtr => GCHandle.ToIntPtr(_overlappedHandle);
+    public IntPtr OverlappedPtr => _overlappedPtr;
 
     /// <summary>
     /// Gets a reference to the OVERLAPPED structure.
     /// </summary>
-    public ref NativeOverlapped Overlapped => ref _overlapped;
+    public unsafe ref NativeOverlapped Overlapped => ref Unsafe.AsRef<NativeOverlapped>((void*)_overlappedPtr);
 
     /// <summary>
     /// Creates a new IO slot.
@@ -65,9 +65,9 @@ internal sealed class IoSlot : IDisposable
         Index = index;
         Buffer = buffer;
 
-        // Pin the OVERLAPPED structure
-        _overlapped = new NativeOverlapped();
-        _overlappedHandle = GCHandle.Alloc(_overlapped, GCHandleType.Pinned);
+        // Allocate unmanaged OVERLAPPED memory to keep it stable during async IO
+        _overlappedPtr = Marshal.AllocHGlobal(Marshal.SizeOf<NativeOverlapped>());
+        Marshal.StructureToPtr(new NativeOverlapped(), _overlappedPtr, false);
     }
 
     /// <summary>
@@ -82,9 +82,10 @@ internal sealed class IoSlot : IDisposable
         IsPending = false;
 
         // Set offset in OVERLAPPED (split into low and high parts)
-        _overlapped.OffsetLow = (int)(offset & 0xFFFFFFFF);
-        _overlapped.OffsetHigh = (int)(offset >> 32);
-        _overlapped.EventHandle = IntPtr.Zero;
+        ref var overlapped = ref Overlapped;
+        overlapped.OffsetLow = (int)(offset & 0xFFFFFFFF);
+        overlapped.OffsetHigh = (int)(offset >> 32);
+        overlapped.EventHandle = IntPtr.Zero;
     }
 
     public void Dispose()
@@ -92,9 +93,10 @@ internal sealed class IoSlot : IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        if (_overlappedHandle.IsAllocated)
+        if (_overlappedPtr != IntPtr.Zero)
         {
-            _overlappedHandle.Free();
+            Marshal.FreeHGlobal(_overlappedPtr);
+            _overlappedPtr = IntPtr.Zero;
         }
     }
 }
