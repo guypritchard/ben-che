@@ -112,19 +112,18 @@ public sealed class WindowsIoEngine : IBenchmarkEngine
                         warnings.Add("SetFileValidData failed (requires SeManageVolumePrivilege). File will be zero-filled.");
                     }
                 }
-
-                // If we need to fill the file, do it here
-                if (!usedSetValidData && spec.FillPattern != null)
-                {
-                    // Would need to write data here
-                    warnings.Add("File filling not implemented; file will contain undefined data.");
-                }
             }
             finally
             {
                 NativeMethods.CloseHandle(handle);
             }
         }, cancellationToken).ConfigureAwait(false);
+
+        if (!usedSetValidData)
+        {
+            warnings.Add("SetFileValidData unavailable. Materializing file with writes to avoid sparse zero-read artifacts.");
+            await MaterializeFileAsync(spec, progress, cancellationToken).ConfigureAwait(false);
+        }
 
         return new PrepareResult
         {
@@ -136,6 +135,66 @@ public sealed class WindowsIoEngine : IBenchmarkEngine
             UsedSetValidData = usedSetValidData,
             Warnings = warnings.Count > 0 ? warnings : null
         };
+    }
+
+    private static async Task MaterializeFileAsync(
+        PrepareSpec spec,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
+    {
+        const int chunkSize = 4 * 1024 * 1024;
+        var buffer = new byte[chunkSize];
+        var pattern = spec.FillPattern;
+
+        if (pattern is { Count: > 0 })
+        {
+            FillPattern(buffer, pattern);
+        }
+
+        await using var stream = new FileStream(
+            spec.FilePath,
+            FileMode.Open,
+            FileAccess.Write,
+            FileShare.Read,
+            chunkSize,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+        long remaining = spec.FileSize;
+        while (remaining > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            int bytesToWrite = (int)Math.Min(remaining, buffer.Length);
+            if (pattern is { Count: > 0 } && bytesToWrite != buffer.Length)
+            {
+                FillPattern(buffer.AsSpan(0, bytesToWrite), pattern);
+            }
+
+            await stream.WriteAsync(buffer.AsMemory(0, bytesToWrite), cancellationToken).ConfigureAwait(false);
+            remaining -= bytesToWrite;
+
+            if (progress != null)
+            {
+                var written = spec.FileSize - remaining;
+                progress.Report((double)written / spec.FileSize);
+            }
+        }
+
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void FillPattern(Span<byte> buffer, IReadOnlyList<byte> pattern)
+    {
+        if (pattern.Count == 0)
+        {
+            buffer.Clear();
+            return;
+        }
+
+        for (int i = 0; i < buffer.Length; i++)
+        {
+            buffer[i] = pattern[i % pattern.Count];
+        }
     }
 
     /// <inheritdoc />

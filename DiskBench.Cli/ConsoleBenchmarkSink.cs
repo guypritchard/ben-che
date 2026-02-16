@@ -10,6 +10,7 @@ internal sealed class ConsoleBenchmarkSink : IBenchmarkSink
     private int _currentWorkload;
     private int _totalWorkloads;
     private int _lastProgressLine = -1;
+    private bool _supportsInPlaceProgress = true;
 
     public void OnBenchmarkStart(BenchmarkPlan plan)
     {
@@ -35,13 +36,44 @@ internal sealed class ConsoleBenchmarkSink : IBenchmarkSink
     public void OnTrialStart(WorkloadSpec workload, int trialNumber, int totalTrials)
     {
         Console.Write($"│  Trial {trialNumber}/{totalTrials}: ");
-        _lastProgressLine = Console.CursorTop;
+        if (!_supportsInPlaceProgress)
+        {
+            Console.WriteLine();
+            return;
+        }
+
+        try
+        {
+            _lastProgressLine = Console.CursorTop;
+        }
+        catch (IOException)
+        {
+            _supportsInPlaceProgress = false;
+            _lastProgressLine = -1;
+            Console.WriteLine();
+        }
+        catch (InvalidOperationException)
+        {
+            _supportsInPlaceProgress = false;
+            _lastProgressLine = -1;
+            Console.WriteLine();
+        }
     }
 
     public void OnTrialProgress(WorkloadSpec workload, int trialNumber, TrialProgress progress)
     {
-        if (_lastProgressLine >= 0 && Console.CursorTop == _lastProgressLine)
+        if (!_supportsInPlaceProgress || _lastProgressLine < 0)
         {
+            return;
+        }
+
+        try
+        {
+            if (Console.CursorTop != _lastProgressLine)
+            {
+                return;
+            }
+
             if (progress.IsFinalizing)
             {
                 Console.Write($"\r???  Trial {trialNumber}: [Finalizing] Draining IO...                ");
@@ -52,6 +84,16 @@ internal sealed class ConsoleBenchmarkSink : IBenchmarkSink
             var throughput = FormatThroughput(progress.CurrentBytesPerSecond);
             var iops = FormatIops(progress.CurrentIops);
             Console.Write($"\r???  Trial {trialNumber}: [{phase}] {progress.PercentComplete:F0}% - {throughput} ({iops})    ");
+        }
+        catch (IOException)
+        {
+            _supportsInPlaceProgress = false;
+            _lastProgressLine = -1;
+        }
+        catch (InvalidOperationException)
+        {
+            _supportsInPlaceProgress = false;
+            _lastProgressLine = -1;
         }
     }
 

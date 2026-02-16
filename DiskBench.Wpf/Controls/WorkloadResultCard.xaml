@@ -43,10 +43,13 @@
                 <!-- Performance Score Badge -->
                 <Border Grid.Column="1" CornerRadius="8" Padding="12,6"
                         Background="{Binding ScoreBackground}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding ScoreLabel}" FontSize="11" 
-                                   Foreground="{Binding ScoreForeground}" FontWeight="SemiBold"/>
-                    </StackPanel>
+                    <TextBlock Text="{Binding ScoreLabel}"
+                               FontSize="11"
+                               Foreground="{Binding ScoreForeground}"
+                               FontWeight="SemiBold"
+                               TextAlignment="Center"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
                 </Border>
             </Grid>
             
