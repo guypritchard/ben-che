@@ -1,5 +1,0 @@
-<Solution>
-  <Project Path="DiskBenchmark.Core/DiskBenchmark.Core.csproj" />
-  <Project Path="DiskBenchmark.Harness/DiskBenchmark.Harness.csproj" />
-  <Project Path="DiskBenchmark.Tests/DiskBenchmark.Tests.csproj" />
-</Solution>

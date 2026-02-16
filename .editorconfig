@@ -1,0 +1,72 @@
+root = true
+
+[*.cs]
+dotnet_diagnostic.SA1028.severity = none
+dotnet_diagnostic.SA1108.severity = none
+dotnet_diagnostic.SA1101.severity = none
+dotnet_diagnostic.SA1116.severity = none
+dotnet_diagnostic.SA1117.severity = none
+dotnet_diagnostic.SA1128.severity = none
+dotnet_diagnostic.SA1129.severity = none
+dotnet_diagnostic.SA1200.severity = none
+dotnet_diagnostic.SA1201.severity = none
+dotnet_diagnostic.SA1202.severity = none
+dotnet_diagnostic.SA1203.severity = none
+dotnet_diagnostic.SA1204.severity = none
+dotnet_diagnostic.SA1300.severity = none
+dotnet_diagnostic.SA1309.severity = none
+dotnet_diagnostic.SA1407.severity = none
+dotnet_diagnostic.SA1402.severity = none
+dotnet_diagnostic.SA1413.severity = none
+dotnet_diagnostic.SA1502.severity = none
+dotnet_diagnostic.SA1503.severity = none
+dotnet_diagnostic.SA1513.severity = none
+dotnet_diagnostic.SA1514.severity = none
+dotnet_diagnostic.SA1515.severity = none
+dotnet_diagnostic.SA1600.severity = none
+dotnet_diagnostic.SA1601.severity = none
+dotnet_diagnostic.SA1602.severity = none
+dotnet_diagnostic.SA1604.severity = none
+dotnet_diagnostic.SA1611.severity = none
+dotnet_diagnostic.SA1615.severity = none
+dotnet_diagnostic.SA1633.severity = none
+dotnet_diagnostic.SA1623.severity = none
+dotnet_diagnostic.SA1629.severity = none
+dotnet_diagnostic.SA1642.severity = none
+dotnet_diagnostic.SA1649.severity = none
+dotnet_diagnostic.SA0001.severity = none
+
+[DiskBench.ShellExtension/Interop.cs]
+dotnet_diagnostic.CA1008.severity = none
+dotnet_diagnostic.CA1028.severity = none
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1712.severity = none
+dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.CA1815.severity = none
+dotnet_diagnostic.SA1200.severity = none
+dotnet_diagnostic.SA1201.severity = none
+dotnet_diagnostic.SA1307.severity = none
+dotnet_diagnostic.SA1310.severity = none
+dotnet_diagnostic.SA1402.severity = none
+dotnet_diagnostic.SA1413.severity = none
+dotnet_diagnostic.SA1649.severity = none
+
+[DiskBench.Tests/**.cs]
+dotnet_diagnostic.SA1210.severity = none
+dotnet_diagnostic.SA1516.severity = none
+
+[DiskBench.Wpf/**.cs]
+dotnet_diagnostic.CA1001.severity = none
+dotnet_diagnostic.CA1031.severity = none
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1308.severity = none
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1806.severity = none
+dotnet_diagnostic.CA1822.severity = none
+dotnet_diagnostic.SA1122.severity = none
+dotnet_diagnostic.SA1124.severity = none
+dotnet_diagnostic.SA1214.severity = none
+dotnet_diagnostic.SA1508.severity = none
+dotnet_diagnostic.SA1516.severity = none

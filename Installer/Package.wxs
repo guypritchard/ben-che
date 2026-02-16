@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package
+    Name="DiskBench"
+    Manufacturer="DiskBench"
+    Version="1.0.0.0"
+    UpgradeCode="{F79D4D8B-0C2A-4E0B-8DDC-2C39A0B6B1B7}"
+    InstallerVersion="500"
+    Compressed="yes"
+    Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of DiskBench is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="DiskBenchIcon" SourceFile="$(var.StageDir)\DiskBench.ico" />
+    <Property Id="ARPPRODUCTICON" Value="DiskBenchIcon" />
+
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <ui:WixUI Id="WixUI_InstallDir" />
+    <Launch Condition="Privileged" Message="Administrator privileges are required to install DiskBench." />
+
+    <Feature Id="MainFeature" Title="DiskBench" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="AppShortcut" />
+      <ComponentRef Id="ShellExtensionRegistry" />
+    </Feature>
+
+    <CustomAction Id="SetRegisterSparse"
+                  Property="RegisterSparse"
+                  Value="&quot;[SystemFolder]WindowsPowerShell\\v1.0\\powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;[INSTALLFOLDER]SparsePackage\\register-sparse-package.ps1&quot;" />
+    <CustomAction Id="SetUnregisterSparse"
+                  Property="UnregisterSparse"
+                  Value="&quot;[SystemFolder]WindowsPowerShell\\v1.0\\powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;[INSTALLFOLDER]SparsePackage\\register-sparse-package.ps1&quot; -Uninstall" />
+    <CustomAction Id="SetRestartExplorer"
+                  Property="RestartExplorer"
+                  Value="&quot;[SystemFolder]cmd.exe&quot; /c taskkill /f /im explorer.exe &gt;nul 2&gt;&amp;1 &amp; start explorer.exe" />
+    <CustomAction Id="SetCleanupLegacyContextMenu"
+                  Property="CleanupLegacyContextMenu"
+                  Value="&quot;[SystemFolder]reg.exe&quot; delete &quot;HKLM\\SOFTWARE\\Classes\\Drive\\shellex\\ContextMenuHandlers\\DiskBench&quot; /f" />
+
+    <CustomAction Id="RegisterSparse"
+                  BinaryRef="Wix4UtilCA_X64"
+                  DllEntry="WixQuietExec"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="yes"
+                  HideTarget="yes" />
+
+    <CustomAction Id="UnregisterSparse"
+                  BinaryRef="Wix4UtilCA_X64"
+                  DllEntry="WixQuietExec"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="yes"
+                  HideTarget="yes" />
+    <CustomAction Id="RestartExplorer"
+                  BinaryRef="Wix4UtilCA_X64"
+                  DllEntry="WixQuietExec"
+                  Execute="commit"
+                  Return="ignore"
+                  Impersonate="yes"
+                  HideTarget="yes" />
+    <CustomAction Id="CleanupLegacyContextMenu"
+                  BinaryRef="Wix4UtilCA_X64"
+                  DllEntry="WixQuietExec"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="yes"
+                  HideTarget="yes" />
+
+    <InstallExecuteSequence>
+      <Custom Action="SetCleanupLegacyContextMenu" After="InstallFiles" Condition="NOT Installed" />
+      <Custom Action="CleanupLegacyContextMenu" After="SetCleanupLegacyContextMenu" Condition="NOT Installed" />
+      <Custom Action="SetRegisterSparse" After="InstallFiles" Condition="NOT Installed" />
+      <Custom Action="RegisterSparse" After="SetRegisterSparse" Condition="NOT Installed" />
+      <Custom Action="SetRestartExplorer" After="InstallFiles" Condition="NOT Installed" />
+      <Custom Action="RestartExplorer" After="InstallFinalize" Condition="NOT Installed" />
+      <Custom Action="SetUnregisterSparse" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot;" />
+      <Custom Action="UnregisterSparse" After="SetUnregisterSparse" Condition="REMOVE=&quot;ALL&quot;" />
+    </InstallExecuteSequence>
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="DiskBench" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="DiskBench" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <Component Id="AppShortcut" Guid="*" Directory="ApplicationProgramsFolder">
+      <Shortcut
+        Id="DiskBenchStartMenuShortcut"
+        Name="DiskBench"
+        Description="DiskBench"
+        Target="[INSTALLFOLDER]DiskBench.Wpf\bin\Release\net10.0-windows\DiskBench.exe"
+        WorkingDirectory="INSTALLFOLDER"
+        Icon="DiskBenchIcon" />
+      <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+      <RegistryValue Root="HKLM" Key="Software\DiskBench" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" />
+      <RegistryValue Root="HKLM" Key="Software\DiskBench\ShellExtension" Name="ExePath" Type="string" Value="[INSTALLFOLDER]DiskBench.Wpf\bin\Release\net10.0-windows\DiskBench.exe" KeyPath="yes" />
+    </Component>
+  </Fragment>
+
+  <Fragment>
+    <Component Id="ShellExtensionRegistry" Guid="*" Directory="INSTALLFOLDER">
+      <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{33560014-F9AA-43E9-83E3-3F58B9F03810}\InprocServer32" Value="[INSTALLFOLDER]DiskBench.ShellExtension.Cpp\bin\Release\DiskBench.ShellExtension.Cpp.dll" Type="string" KeyPath="yes" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{33560014-F9AA-43E9-83E3-3F58B9F03810}\InprocServer32" Name="ThreadingModel" Value="Apartment" Type="string" />
+
+      <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" Name="{33560014-F9AA-43E9-83E3-3F58B9F03810}" Value="DiskBench" Type="string" />
+
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shell\DiskBench" Name="MUIVerb" Value="Benchmark Drive Performance" Type="string" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shell\DiskBench" Name="Icon" Value="[INSTALLFOLDER]DiskBench.ico" Type="string" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shell\DiskBench" Name="Position" Value="Top" Type="string" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shell\DiskBench" Name="ExplorerCommandHandler" Value="{33560014-F9AA-43E9-83E3-3F58B9F03810}" Type="string" />
+      <RegistryValue Root="HKLM" Key="Software\Classes\Drive\shell\DiskBench" Name="CommandStateHandler" Value="{33560014-F9AA-43E9-83E3-3F58B9F03810}" Type="string" />
+    </Component>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.StageDir)\**\*" />
+    </ComponentGroup>
+  </Fragment>
+</Wix>
