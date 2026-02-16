@@ -76,16 +76,34 @@ public class PercentToDashArrayConverter : IValueConverter
         else if (value is float f)
             percent = f;
 
+        // WPF StrokeDashArray units are multiples of StrokeThickness, not raw pixels.
+        // Parameter format: "<circumference>|<strokeThickness>".
         var circumference = 0.0;
+        var strokeThickness = 1.0;
         if (parameter != null)
-            double.TryParse(parameter.ToString(), out circumference);
+        {
+            var paramText = parameter.ToString();
+            if (!string.IsNullOrWhiteSpace(paramText))
+            {
+                var parts = paramText.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length > 0)
+                {
+                    double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out circumference);
+                }
 
-        if (circumference <= 0)
+                if (parts.Length > 1)
+                {
+                    double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out strokeThickness);
+                }
+            }
+        }
+
+        if (circumference <= 0 || strokeThickness <= 0)
             return new DoubleCollection { 0, 1 };
 
         var clamped = Math.Max(0, Math.Min(percent, 100));
-        var progress = circumference * (clamped / 100.0);
-        var remainder = Math.Max(0.0, circumference - progress);
+        var progress = circumference * (clamped / 100.0) / strokeThickness;
+        var remainder = Math.Max(0.0, (circumference / strokeThickness) - progress);
 
         return new DoubleCollection { progress, remainder };
     }

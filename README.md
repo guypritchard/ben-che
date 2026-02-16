@@ -2,6 +2,14 @@
 
 A high-performance Windows storage benchmarking library targeting .NET 10 with clean separation between core benchmarking logic and renderers.
 
+## Demo
+
+![DiskBench demo UI](docs/image.png)
+
+### Quick Mode
+
+![DiskBench quick mode UI](docs/image-quick.png)
+
 ## Features
 
 - **Accurate Measurements**: Uses Win32 overlapped I/O with IO Completion Ports (IOCP) for true async I/O
@@ -36,6 +44,38 @@ dotnet run --project DiskBench.Cli -- run --file testfile.dat --size 4G --trials
 
 # Get disk information
 dotnet run --project DiskBench.Cli -- info --path C:\
+```
+
+## WPF Command-Line Parameters
+
+You can preconfigure and optionally auto-start the WPF app from the command line:
+
+```bash
+dotnet run --project DiskBench.Wpf -- [options]
+```
+
+Options:
+
+| Option | Description |
+|--------|-------------|
+| `-p`, `--profile <name>` | Selects a benchmark profile (e.g., `gaming`, `database`, `streaming`). |
+| `-d`, `--drive <path>` | Selects the target drive (e.g., `D:\` or `E:`). |
+| `-s`, `--size <size>` | Selects file size. Supported values map to UI presets: `1`, `2`, `4`, `8`, `16`, `32`, `64` (GB). |
+| `--start`, `--auto` | Auto-starts benchmark after launch. |
+| `-q`, `--quick` | Quick mode (compact window, Gaming profile, 1 GB, 10 sec, 1 trial, auto-start). |
+| `<drive path>` | Positional drive argument also works (e.g., `D:\`). |
+
+Examples:
+
+```bash
+# Launch WPF with Gaming profile on D: and auto-start
+dotnet run --project DiskBench.Wpf -- --profile gaming --drive D:\ --auto
+
+# Launch in quick mode for E:
+dotnet run --project DiskBench.Wpf -- --quick E:\
+
+# Launch with Database profile and 16 GB file size preset
+dotnet run --project DiskBench.Wpf -- -p database -d C:\ -s 16
 ```
 
 ## CLI Commands
